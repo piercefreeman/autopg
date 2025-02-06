@@ -1,3 +1,8 @@
+"""
+Tests for this core logic are almost fully written from the original Javascript:
+https://github.com/le0pard/pgtune/blob/9ae57d0a97ba6c597390d43b15cd428311327939/src/features/configuration/__tests__/configurationSlice.test.js
+
+"""
 import pytest
 from autopg.logic import PostgresConfig
 from autopg.constants import (

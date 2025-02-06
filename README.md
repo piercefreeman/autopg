@@ -15,3 +15,13 @@ uv sync
 ```bash
 uv run autopg
 ```
+
+To test the docker build pipeline locally, run:
+
+```bash
+docker build -t autopg .
+```
+
+```bash
+docker run -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password autopg
+```

@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from math import ceil
-from typing import Callable, Optional
+from typing import Callable
 
 from pydantic import BaseModel
 
@@ -50,10 +50,10 @@ class Configuration(BaseModel):
     db_version: float = DEFAULT_DB_VERSION
     os_type: str = OS_LINUX
     db_type: str = DB_TYPE_WEB
-    total_memory: Optional[int] = None
+    total_memory: int | None = None
     total_memory_unit: str = SIZE_UNIT_GB
-    cpu_num: Optional[int] = None
-    connection_num: Optional[int] = None
+    cpu_num: int | None = None
+    connection_num: int | None = None
     hd_type: str = HARD_DRIVE_SSD
 
 
@@ -91,7 +91,7 @@ class PostgresConfig:
             return "off"
         return "try" if memory_kb >= 33554432 else "off"
 
-    def get_shared_buffers(self) -> Optional[int]:
+    def get_shared_buffers(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -113,7 +113,7 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_effective_cache_size(self) -> Optional[int]:
+    def get_effective_cache_size(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -127,7 +127,7 @@ class PostgresConfig:
         }
         return int(cache_map[self.state.db_type](memory_kb))
 
-    def get_maintenance_work_mem(self) -> Optional[int]:
+    def get_maintenance_work_mem(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -152,7 +152,7 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_checkpoint_segments(self) -> list[dict[str, str | float]]:
+    def get_checkpoint_segments(self) -> dict[str, str | float]:
         min_wal_size_map = {
             DB_TYPE_WEB: 1024 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
             DB_TYPE_OLTP: 2048 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
@@ -169,15 +169,15 @@ class PostgresConfig:
             DB_TYPE_MIXED: 4096 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
         }
 
-        return [
-            {"key": "min_wal_size", "value": min_wal_size_map[self.state.db_type]},
-            {"key": "max_wal_size", "value": max_wal_size_map[self.state.db_type]},
-        ]
+        return {
+            "min_wal_size": min_wal_size_map[self.state.db_type],
+            "max_wal_size": max_wal_size_map[self.state.db_type],
+        }
 
     def get_checkpoint_completion_target(self) -> float:
         return 0.9  # based on https://github.com/postgres/postgres/commit/bbcc4eb2
 
-    def get_wal_buffers(self) -> Optional[int]:
+    def get_wal_buffers(self) -> int | None:
         shared_buffers = self.get_shared_buffers()
         if shared_buffers is None:
             return None
@@ -215,16 +215,16 @@ class PostgresConfig:
         cost_map = {HARD_DRIVE_HDD: 4.0, HARD_DRIVE_SSD: 1.1, HARD_DRIVE_SAN: 1.1}
         return cost_map[self.state.hd_type]
 
-    def get_effective_io_concurrency(self) -> Optional[int]:
+    def get_effective_io_concurrency(self) -> int | None:
         if self.state.os_type != OS_LINUX:
             return None
 
         concurrency_map = {HARD_DRIVE_HDD: 2, HARD_DRIVE_SSD: 200, HARD_DRIVE_SAN: 300}
         return concurrency_map[self.state.hd_type]
 
-    def get_parallel_settings(self) -> list[dict[str, str | int]]:
+    def get_parallel_settings(self) -> dict[str, str | int]:
         if not self.state.cpu_num or self.state.cpu_num < 4:
-            return []
+            return {}
 
         workers_per_gather = ceil(self.state.cpu_num / 2)
 
@@ -232,26 +232,24 @@ class PostgresConfig:
             #  no clear evidence, that each new worker will provide big benefit for each new core
             workers_per_gather = 4
 
-        config = [
-            {"key": "max_worker_processes", "value": self.state.cpu_num},
-            {"key": "max_parallel_workers_per_gather", "value": workers_per_gather},
-        ]
+        config: dict[str, str | int] = {
+            "max_worker_processes": self.state.cpu_num,
+            "max_parallel_workers_per_gather": workers_per_gather,
+        }
 
         if self.state.db_version >= 10:
-            config.append({"key": "max_parallel_workers", "value": self.state.cpu_num})
+            config["max_parallel_workers"] = self.state.cpu_num
 
         if self.state.db_version >= 11:
             parallel_maintenance_workers = ceil(self.state.cpu_num / 2)
             if parallel_maintenance_workers > 4:
                 parallel_maintenance_workers = 4
 
-            config.append(
-                {"key": "max_parallel_maintenance_workers", "value": parallel_maintenance_workers}
-            )
+            config["max_parallel_maintenance_workers"] = parallel_maintenance_workers
 
         return config
 
-    def get_work_mem(self) -> Optional[int]:
+    def get_work_mem(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         shared_buffers = self.get_shared_buffers()
         if memory_kb is None or shared_buffers is None:
@@ -293,10 +291,10 @@ class PostgresConfig:
             return ["WARNING", "this tool not being optimal", "for very high memory systems"]
         return []
 
-    def get_wal_level(self) -> list[dict[str, str]]:
+    def get_wal_level(self) -> dict[str, str]:
         if self.state.db_type == DB_TYPE_DESKTOP:
-            return [
-                {"key": "wal_level", "value": "minimal"},
-                {"key": "max_wal_senders", "value": "0"},
-            ]
-        return []
+            return {
+                "wal_level": "minimal",
+                "max_wal_senders": "0",
+            }
+        return {}

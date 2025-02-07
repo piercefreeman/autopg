@@ -12,6 +12,8 @@ from autopg.constants import (
     SIZE_UNIT_MAP,
 )
 
+CONFIG_TYPES = int | float | str | bool
+
 #
 # Config management
 #
@@ -46,7 +48,7 @@ def read_postgresql_conf(base_path: str = PG_CONFIG_DIR) -> dict[str, Any]:
     return config
 
 
-def format_postgres_values(config: dict[str, Any]) -> dict[str, str]:
+def format_postgres_values(config: dict[str, CONFIG_TYPES | None]) -> dict[str, str]:
     """
     Re-format based on known units. The pipeline is expected to be:
 
@@ -59,6 +61,9 @@ def format_postgres_values(config: dict[str, Any]) -> dict[str, str]:
     str_config: dict[str, str] = {}
 
     for key, value in config.items():
+        if not value:
+            continue
+
         if key in KNOWN_STORAGE_VARS:
             # Storage values are always strings
             config_value = f"'{format_kb_value(value)}'"
@@ -94,7 +99,7 @@ def write_postgresql_conf(
 #
 
 
-def format_value(value: int | float | str | bool) -> str:
+def format_value(value: CONFIG_TYPES) -> str:
     """Format configuration values appropriately"""
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -103,7 +108,7 @@ def format_value(value: int | float | str | bool) -> str:
     return value
 
 
-def parse_value(value: str) -> int | float | str | bool:
+def parse_value(value: str) -> CONFIG_TYPES:
     """Parse configuration values appropriately"""
     if value.lower() in ["true", "false"]:
         return value.lower() == "true"

@@ -5,7 +5,6 @@ from enum import StrEnum
 from typing import Any, Dict
 
 import click
-from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 from rich.console import Console
 from rich.table import Table
@@ -20,6 +19,7 @@ from autopg.constants import (
 )
 from autopg.logic import Configuration, PostgresConfig
 from autopg.postgres import (
+    CONFIG_TYPES,
     format_postgres_values,
     get_postgres_version,
     read_postgresql_conf,
@@ -80,7 +80,7 @@ class EnvOverrides(BaseSettings):
     NUM_CONNECTIONS: int | None = 100
     PRIMARY_DISK_TYPE: str | None = None
 
-    model_config = ConfigDict(env_file=".env", env_prefix="AUTOPG_")
+    model_config = {"env_file": ".env", "env_prefix": "AUTOPG_"}
 
 
 def get_os_type() -> str:
@@ -148,8 +148,8 @@ def build_config(pg_path: str) -> None:
     env = EnvOverrides()
 
     # Get system information
-    total_mem, available_mem = get_memory_info()
-    cpu_count, cpu_freq = get_cpu_info()
+    memory_info = get_memory_info()
+    cpu_info = get_cpu_info()
     disk_type = get_disk_type()
     os_type = get_os_type()
     postgres_version = get_postgres_version()
@@ -159,9 +159,9 @@ def build_config(pg_path: str) -> None:
         db_version=postgres_version,
         os_type=os_type,
         db_type=env.DB_TYPE or DB_TYPE_WEB,
-        total_memory=int(env.TOTAL_MEMORY_MB or total_mem * 1024),
+        total_memory=int(env.TOTAL_MEMORY_MB or memory_info.total * 1024),
         total_memory_unit=SIZE_UNIT_MB,
-        cpu_num=env.CPU_COUNT or cpu_count,
+        cpu_num=env.CPU_COUNT or cpu_info.count,
         connection_num=env.NUM_CONNECTIONS,
         hd_type=env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
     )
@@ -173,7 +173,7 @@ def build_config(pg_path: str) -> None:
     pg_config = PostgresConfig(config_payload)
 
     # Calculate recommended settings
-    new_config = {
+    new_config: dict[str, CONFIG_TYPES | None] = {
         "shared_buffers": pg_config.get_shared_buffers(),
         "effective_cache_size": pg_config.get_effective_cache_size(),
         "maintenance_work_mem": pg_config.get_maintenance_work_mem(),
@@ -185,21 +185,18 @@ def build_config(pg_path: str) -> None:
     }
 
     # Add WAL settings
-    for setting in pg_config.get_checkpoint_segments():
-        new_config[setting["key"]] = setting["value"]
+    new_config = {**new_config, **pg_config.get_checkpoint_segments()}
+
+    # Add parallel settings
+    new_config = {**new_config, **pg_config.get_parallel_settings()}
+
+    # Add WAL level settings
+    new_config = {**new_config, **pg_config.get_wal_level()}
 
     # Add WAL buffers if available
     wal_buffers = pg_config.get_wal_buffers()
     if wal_buffers is not None:
         new_config["wal_buffers"] = wal_buffers
-
-    # Add parallel settings
-    for setting in pg_config.get_parallel_settings():
-        new_config[setting["key"]] = setting["value"]
-
-    # Add WAL level settings
-    for setting in pg_config.get_wal_level():
-        new_config[setting["key"]] = setting["value"]
 
     # Add IO concurrency if available
     io_concurrency = pg_config.get_effective_io_concurrency()

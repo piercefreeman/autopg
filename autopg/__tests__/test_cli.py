@@ -7,9 +7,9 @@ from click.testing import CliRunner
 
 from autopg.cli import cli
 from autopg.constants import (
-    HARD_DRIVE_SSD,
     OS_LINUX,
 )
+from autopg.system_info import CpuInfo, DiskType, MemoryInfo
 
 
 @pytest.fixture
@@ -31,9 +31,9 @@ def mock_system_info():
         patch("autopg.cli.get_postgres_version") as mock_postgres,
     ):
         # Set up mock returns
-        mock_memory.return_value = (16, 8)  # 16GB total, 8GB available
-        mock_cpu.return_value = (4, 2.5)  # 4 cores, 2.5GHz
-        mock_disk.return_value = HARD_DRIVE_SSD
+        mock_memory.return_value = MemoryInfo(total=16, available=8)  # 16GB total, 8GB available
+        mock_cpu.return_value = CpuInfo(count=4, current_freq=2.5)  # 4 cores, 2.5GHz
+        mock_disk.return_value = DiskType.SSD
         mock_os.return_value = OS_LINUX
         mock_postgres.return_value = "14.0"
 

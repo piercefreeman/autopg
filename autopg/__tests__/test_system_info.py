@@ -3,7 +3,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from autopg.system_info import get_cpu_info, get_disk_type, get_memory_info
+from autopg.system_info import DiskType, get_cpu_info, get_disk_type, get_memory_info
 
 
 def test_get_memory_info() -> None:
@@ -36,11 +36,11 @@ def test_get_cpu_info() -> None:
 @pytest.mark.parametrize(
     "rotational_value,expected_type",
     [
-        ("0\n", "SSD"),
-        ("1\n", "HDD"),
+        ("0\n", DiskType.SSD),
+        ("1\n", DiskType.HDD),
     ],
 )
-def test_get_disk_type(rotational_value: str, expected_type: str) -> None:
+def test_get_disk_type(rotational_value: str, expected_type: DiskType) -> None:
     """Test disk type detection for both SSD and HDD"""
     DiskPartition = NamedTuple("DiskPartition", [("device", str)])
     mock_partition = DiskPartition(device="/dev/sda1")

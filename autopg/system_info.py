@@ -4,6 +4,8 @@ from enum import StrEnum
 import psutil
 from rich.console import Console
 
+from autopg.constants import HARD_DRIVE_HDD, HARD_DRIVE_SSD
+
 console = Console()
 
 
@@ -20,8 +22,8 @@ class CpuInfo:
 
 
 class DiskType(StrEnum):
-    SSD = "SSD"
-    HDD = "HDD"
+    SSD = HARD_DRIVE_SSD
+    HDD = HARD_DRIVE_HDD
 
 
 def get_memory_info() -> MemoryInfo:

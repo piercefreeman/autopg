@@ -135,7 +135,7 @@ def test_parallel_settings_less_than_2_cpu() -> None:
             total_memory_unit="GB",
         )
     )
-    assert config.get_parallel_settings() == []
+    assert config.get_parallel_settings() == {}
 
 
 def test_parallel_settings_postgresql_13() -> None:
@@ -148,12 +148,12 @@ def test_parallel_settings_postgresql_13() -> None:
             total_memory_unit="GB",
         )
     )
-    assert config.get_parallel_settings() == [
-        {"key": "max_worker_processes", "value": 12},
-        {"key": "max_parallel_workers_per_gather", "value": 4},
-        {"key": "max_parallel_workers", "value": 12},
-        {"key": "max_parallel_maintenance_workers", "value": 4},
-    ]
+    assert config.get_parallel_settings() == {
+        "max_worker_processes": 12,
+        "max_parallel_workers_per_gather": 4,
+        "max_parallel_workers": 12,
+        "max_parallel_maintenance_workers": 4,
+    }
 
 
 def test_parallel_settings_postgresql_10() -> None:
@@ -166,11 +166,11 @@ def test_parallel_settings_postgresql_10() -> None:
             total_memory_unit="GB",
         )
     )
-    assert config.get_parallel_settings() == [
-        {"key": "max_worker_processes", "value": 12},
-        {"key": "max_parallel_workers_per_gather", "value": 4},
-        {"key": "max_parallel_workers", "value": 12},
-    ]
+    assert config.get_parallel_settings() == {
+        "max_worker_processes": 12,
+        "max_parallel_workers_per_gather": 4,
+        "max_parallel_workers": 12,
+    }
 
 
 def test_parallel_settings_postgresql_10_with_31_cpu() -> None:
@@ -183,11 +183,11 @@ def test_parallel_settings_postgresql_10_with_31_cpu() -> None:
             total_memory_unit="GB",
         )
     )
-    assert config.get_parallel_settings() == [
-        {"key": "max_worker_processes", "value": 31},
-        {"key": "max_parallel_workers_per_gather", "value": 4},
-        {"key": "max_parallel_workers", "value": 31},
-    ]
+    assert config.get_parallel_settings() == {
+        "max_worker_processes": 31,
+        "max_parallel_workers_per_gather": 4,
+        "max_parallel_workers": 31,
+    }
 
 
 def test_parallel_settings_postgresql_12_with_31_cpu_and_dwh() -> None:
@@ -201,12 +201,12 @@ def test_parallel_settings_postgresql_12_with_31_cpu_and_dwh() -> None:
             hd_type=HARD_DRIVE_SSD,
         )
     )
-    assert config.get_parallel_settings() == [
-        {"key": "max_worker_processes", "value": 31},
-        {"key": "max_parallel_workers_per_gather", "value": 16},
-        {"key": "max_parallel_workers", "value": 31},
-        {"key": "max_parallel_maintenance_workers", "value": 4},
-    ]
+    assert config.get_parallel_settings() == {
+        "max_worker_processes": 31,
+        "max_parallel_workers_per_gather": 16,
+        "max_parallel_workers": 31,
+        "max_parallel_maintenance_workers": 4,
+    }
 
 
 @pytest.mark.parametrize(
@@ -214,9 +214,9 @@ def test_parallel_settings_postgresql_12_with_31_cpu_and_dwh() -> None:
     [
         (
             DB_TYPE_DESKTOP,
-            [{"key": "wal_level", "value": "minimal"}, {"key": "max_wal_senders", "value": "0"}],
+            {"wal_level": "minimal", "max_wal_senders": "0"},
         ),
-        (DB_TYPE_WEB, []),
+        (DB_TYPE_WEB, {}),
     ],
 )
 def test_wal_level(db_type: str, expected: list[dict[str, str]]) -> None:

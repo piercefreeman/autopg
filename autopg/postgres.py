@@ -1,4 +1,6 @@
 import shutil
+import subprocess
+import re
 from pathlib import Path
 from typing import Any, Dict, Union
 
@@ -24,6 +26,31 @@ def read_postgresql_conf(base_path: str = "/etc/postgresql") -> Dict[str, Any]:
                     continue
     return config
 
+def get_postgres_version() -> int:
+    """Get the version of PostgreSQL installed
+    
+    Returns:
+        int: The major version number of PostgreSQL (e.g. 16 for PostgreSQL 16.3)
+        
+    Raises:
+        subprocess.CalledProcessError: If postgres is not installed or command fails
+        ValueError: If version string cannot be parsed
+    """
+    try:
+        result = subprocess.run(
+            ["postgres", "--version"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        version_str = result.stdout.strip()
+        # Use regex to find version number pattern (e.g. "16.3" in "postgres (PostgreSQL) 16.3 (Homebrew)")
+        version_match = re.search(r'(\d+)\.?\d*', version_str)
+        if not version_match:
+            raise ValueError("Could not find version number in postgres output")
+        return int(version_match.group(1))
+    except (subprocess.CalledProcessError, ValueError) as e:
+        raise ValueError(f"Failed to get PostgreSQL version: {str(e)}")
 
 def format_value(value: Union[int, float, str]) -> str:
     """Format configuration values appropriately"""

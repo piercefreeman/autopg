@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from math import ceil
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -45,9 +45,9 @@ from autopg.constants import (
 )
 
 # Constants
-SIZE_UNIT_MAP: Dict[str, int] = {"KB": 1024, "MB": 1048576, "GB": 1073741824, "TB": 1099511627776}
+SIZE_UNIT_MAP: dict[str, int] = {"KB": 1024, "MB": 1048576, "GB": 1073741824, "TB": 1099511627776}
 
-DEFAULT_DB_SETTINGS: Dict[str, Dict[str, int]] = {
+DEFAULT_DB_SETTINGS: dict[str, dict[str, int]] = {
     "default": {
         "max_worker_processes": 8,
         "max_parallel_workers_per_gather": 2,
@@ -60,10 +60,10 @@ class Configuration(BaseModel):
     db_version: float = DEFAULT_DB_VERSION
     os_type: str = OS_LINUX
     db_type: str = DB_TYPE_WEB
-    total_memory: Optional[int] = None
+    total_memory: int | None = None
     total_memory_unit: str = SIZE_UNIT_GB
-    cpu_num: Optional[int] = None
-    connection_num: Optional[int] = None
+    cpu_num: int | None = None
+    connection_num: int | None = None
     hd_type: str = HARD_DRIVE_SSD
 
 
@@ -71,12 +71,12 @@ class PostgresConfig:
     def __init__(self, config: Configuration):
         self.state = config
 
-    def get_total_memory_in_bytes(self) -> Optional[int]:
+    def get_total_memory_in_bytes(self) -> int | None:
         if self.state.total_memory is None:
             return None
         return self.state.total_memory * SIZE_UNIT_MAP[self.state.total_memory_unit]
 
-    def get_total_memory_in_kb(self) -> Optional[float]:
+    def get_total_memory_in_kb(self) -> float | None:
         memory_bytes = self.get_total_memory_in_bytes()
         if memory_bytes is None:
             return None
@@ -101,7 +101,7 @@ class PostgresConfig:
             return "off"
         return "try" if memory_kb >= 33554432 else "off"
 
-    def get_shared_buffers(self) -> Optional[int]:
+    def get_shared_buffers(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -123,7 +123,7 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_effective_cache_size(self) -> Optional[int]:
+    def get_effective_cache_size(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -137,7 +137,7 @@ class PostgresConfig:
         }
         return int(cache_map[self.state.db_type](memory_kb))
 
-    def get_maintenance_work_mem(self) -> Optional[int]:
+    def get_maintenance_work_mem(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
@@ -162,7 +162,7 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_checkpoint_segments(self) -> List[Dict[str, Union[str, float]]]:
+    def get_checkpoint_segments(self) -> list[dict[str, str | float]]:
         min_wal_size_map = {
             DB_TYPE_WEB: 1024 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
             DB_TYPE_OLTP: 2048 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
@@ -232,7 +232,7 @@ class PostgresConfig:
         concurrency_map = {HARD_DRIVE_HDD: 2, HARD_DRIVE_SSD: 200, HARD_DRIVE_SAN: 300}
         return concurrency_map[self.state.hd_type]
 
-    def get_parallel_settings(self) -> List[Dict[str, Union[str, int]]]:
+    def get_parallel_settings(self) -> list[dict[str, str | int]]:
         if not self.state.cpu_num or self.state.cpu_num < 4:
             return []
 
@@ -292,7 +292,7 @@ class PostgresConfig:
         value = int(work_mem_map[self.state.db_type](work_mem))
         return max(64, value)  # Minimum 64kb
 
-    def get_warning_info_messages(self) -> List[str]:
+    def get_warning_info_messages(self) -> list[str]:
         memory_bytes = self.get_total_memory_in_bytes()
         if memory_bytes is None:
             return []
@@ -303,7 +303,7 @@ class PostgresConfig:
             return ["WARNING", "this tool not being optimal", "for very high memory systems"]
         return []
 
-    def get_wal_level(self) -> List[Dict[str, str]]:
+    def get_wal_level(self) -> list[dict[str, str]]:
         if self.state.db_type == DB_TYPE_DESKTOP:
             return [
                 {"key": "wal_level", "value": "minimal"},

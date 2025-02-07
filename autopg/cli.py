@@ -16,10 +16,10 @@ from autopg.constants import (
     OS_LINUX,
     OS_MAC,
     OS_WINDOWS,
-    SIZE_UNIT_GB,
+    SIZE_UNIT_MB,
 )
-from autopg.logic import PostgresConfig
-from autopg.postgres import read_postgresql_conf, write_postgresql_conf
+from autopg.logic import PostgresConfig, Configuration
+from autopg.postgres import read_postgresql_conf, get_postgres_version, write_postgresql_conf
 from autopg.system_info import get_cpu_info, get_disk_type, get_memory_info
 
 console = Console()
@@ -69,8 +69,8 @@ class EnvOverrides(BaseSettings):
     defaults for most applications where we have no other context.
     """
 
-    DB_TYPE: str = "web"
-    TOTAL_MEMORY: float | None = None
+    DB_TYPE: DBType = DBType.WEB
+    TOTAL_MEMORY_MB: int | None = None
     CPU_COUNT: int | None = None
     NUM_CONNECTIONS: int | None = 100
     PRIMARY_DISK_TYPE: str | None = None
@@ -89,7 +89,7 @@ def get_os_type() -> str:
 
 def display_config_diff(old_config: Dict[str, Any], new_config: Dict[str, Any]) -> None:
     """Display the configuration differences in a rich table"""
-    table = Table(title="PostgreSQL Configuration Changes")
+    table = Table(title="Autopg Configuration")
     table.add_column("Parameter")
     table.add_column("Old Value")
     table.add_column("New Value")
@@ -122,28 +122,27 @@ def build_config(pg_path: str) -> None:
     # Load environment overrides
     env = EnvOverrides()
 
-    # Initialize PostgreSQL config calculator
-    pg_config = PostgresConfig()
-
     # Get system information
     total_mem, available_mem = get_memory_info()
     cpu_count, cpu_freq = get_cpu_info()
     disk_type = get_disk_type()
     os_type = get_os_type()
+    postgres_version = get_postgres_version()
 
     # Configure with detected values, allowing env overrides
-    config_payload = {
-        "db_version": pg_config.state["db_version"],  # Use default version
-        "os_type": os_type,
-        "db_type": env.DB_TYPE or DB_TYPE_WEB,
-        "total_memory": env.TOTAL_MEMORY or total_mem,
-        "total_memory_unit": SIZE_UNIT_GB,
-        "cpu_num": env.CPU_COUNT or cpu_count,
-        "connection_num": env.NUM_CONNECTIONS,
-        "hd_type": env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
-    }
+    config_payload = Configuration(
+        db_version=postgres_version,
+        os_type=os_type,
+        db_type=env.DB_TYPE or DB_TYPE_WEB,
+        total_memory=int(env.TOTAL_MEMORY_MB or total_mem * 1024),
+        total_memory_unit=SIZE_UNIT_MB,
+        cpu_num=env.CPU_COUNT or cpu_count,
+        connection_num=env.NUM_CONNECTIONS,
+        hd_type=env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
+    )
 
-    pg_config.submit_configuration(config_payload)
+    # Initialize PostgreSQL config calculator
+    pg_config = PostgresConfig(config_payload)
 
     # Calculate recommended settings
     new_config = {

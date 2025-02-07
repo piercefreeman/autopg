@@ -1,5 +1,9 @@
 #!/bin/bash
 
-echo "Hello World"
+echo "Running Autopg..."
+
+autopg build-config --pg-path /etc/postgresql
+
+echo "Booting PostgreSQL..."
 
 exec docker-entrypoint.sh postgres

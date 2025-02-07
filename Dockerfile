@@ -15,7 +15,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies using uv
-RUN uv sync
+RUN uv sync --active
 RUN chmod +x /app/bootstrap.sh
 
 # Keep the original postgres entrypoint

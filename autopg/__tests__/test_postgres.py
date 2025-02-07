@@ -5,6 +5,8 @@ from unittest.mock import patch
 import pytest
 
 from autopg.postgres import (
+    format_kb_value,
+    format_postgres_values,
     format_value,
     get_postgres_version,
     read_postgresql_conf,
@@ -47,9 +49,9 @@ def test_read_postgresql_conf(tmp_path: Path) -> None:
 
     # Verify the parsed configuration
     assert config == {
-        "shared_buffers": "128MB",
-        "work_mem": "4MB",
-        "max_connections": "100",
+        "shared_buffers": 128 * 1024,
+        "work_mem": 4 * 1024,
+        "max_connections": 100,
     }
 
     # Test with non-existent file
@@ -61,7 +63,7 @@ def test_read_postgresql_conf(tmp_path: Path) -> None:
     base_file = conf_dir / "postgresql.conf.base"
     base_file.write_text("shared_buffers = 256MB")
     config = read_postgresql_conf(str(conf_dir))
-    assert config == {"shared_buffers": "256MB"}
+    assert config == {"shared_buffers": 256 * 1024}
 
 
 @pytest.mark.parametrize(
@@ -69,8 +71,8 @@ def test_read_postgresql_conf(tmp_path: Path) -> None:
     [
         (100, "100"),
         (3.14, "3.14"),
-        ("128MB", "'128MB'"),
-        ("on", "'on'"),
+        ("128MB", "128MB"),
+        ("on", "on"),
         (0, "0"),
         (-1, "-1"),
         (True, "true"),
@@ -88,14 +90,14 @@ def test_write_postgresql_conf(tmp_path: Path) -> None:
     conf_dir.mkdir()
 
     test_config: Dict[str, Any] = {
-        "shared_buffers": "128MB",
+        "shared_buffers": 128 * 1024,
         "work_mem": 4,
         "max_connections": 100,
         "ssl": "on",
     }
 
     # Write the configuration
-    write_postgresql_conf(test_config, str(conf_dir))
+    write_postgresql_conf(format_postgres_values(test_config), str(conf_dir))
 
     # Verify the written file
     conf_file = conf_dir / "postgresql.conf"
@@ -109,7 +111,7 @@ def test_write_postgresql_conf(tmp_path: Path) -> None:
 
     # Check values are properly formatted
     assert "shared_buffers = '128MB'" in content
-    assert "work_mem = 4" in content
+    assert "work_mem = '4kB'" in content
     assert "max_connections = 100" in content
     assert "ssl = 'on'" in content
 
@@ -128,3 +130,30 @@ def test_backup_postgresql_conf(tmp_path: Path) -> None:
     base_conf = conf_dir / "postgresql.conf.base"
     assert base_conf.exists()  # Backup should be created
     assert base_conf.read_text() == "existing_param = 'value'"
+
+
+@pytest.mark.parametrize(
+    "kb_value,expected",
+    [
+        # GB cases
+        (1048576, "1GB"),  # 1 GB
+        (2097152, "2GB"),  # 2 GB
+        (5242880, "5GB"),  # 5 GB
+        # MB cases
+        (1024, "1MB"),  # 1 MB
+        (2048, "2MB"),  # 2 MB
+        (51200, "50MB"),  # 50 MB
+        # KB cases
+        (1, "1kB"),  # 1 KB
+        (512, "512kB"),  # 512 KB
+        (1000, "1000kB"),  # Not quite 1 MB, should stay as KB
+        # Edge cases
+        (0, "0kB"),
+    ],
+)
+def test_format_kb_value(kb_value: int, expected: str):
+    """
+    Test the format_kb_value function with various inputs to ensure it correctly
+    formats values in kilobytes to the most appropriate unit (GB, MB, or kB).
+    """
+    assert format_kb_value(kb_value) == expected

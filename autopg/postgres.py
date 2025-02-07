@@ -60,9 +60,13 @@ def format_postgres_values(config: dict[str, Any]) -> dict[str, str]:
 
     for key, value in config.items():
         if key in KNOWN_STORAGE_VARS:
-            str_config[key] = format_kb_value(value)
+            # Storage values are always strings
+            config_value = f"'{format_kb_value(value)}'"
         else:
-            str_config[key] = format_value(value)
+            # We should only wrap with single quotes if the original value is a string
+            config_value = format_value(value)
+            config_value = f"'{config_value}'" if isinstance(value, str) else config_value
+        str_config[key] = config_value
 
     return str_config
 
@@ -96,7 +100,7 @@ def format_value(value: int | float | str | bool) -> str:
         return "true" if value else "false"
     elif isinstance(value, (int, float)):
         return str(value)
-    return f"'{value}'"
+    return value
 
 
 def parse_value(value: str) -> int | float | str | bool:

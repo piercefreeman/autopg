@@ -1,4 +1,4 @@
-FROM postgres:16
+FROM postgres:${POSTGRES_VERSION}
 
 # Copy uv from the official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

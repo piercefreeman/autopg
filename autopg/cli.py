@@ -18,8 +18,8 @@ from autopg.constants import (
     OS_WINDOWS,
     SIZE_UNIT_MB,
 )
-from autopg.logic import PostgresConfig, Configuration
-from autopg.postgres import read_postgresql_conf, get_postgres_version, write_postgresql_conf
+from autopg.logic import Configuration, PostgresConfig, format_kb_value
+from autopg.postgres import get_postgres_version, read_postgresql_conf, write_postgresql_conf
 from autopg.system_info import get_cpu_info, get_disk_type, get_memory_info
 
 console = Console()
@@ -107,6 +107,26 @@ def display_config_diff(old_config: Dict[str, Any], new_config: Dict[str, Any]) 
     console.print(table)
 
 
+def display_detected_params(config: Configuration) -> None:
+    """Display the detected system parameters in a rich table"""
+    table = Table(title="Detected System Parameters")
+    table.add_column("Parameter")
+    table.add_column("Value")
+
+    # Add all configuration parameters
+    table.add_row("Database Version", str(config.db_version))
+    table.add_row("Operating System", config.os_type)
+    table.add_row("Database Type", config.db_type)
+    table.add_row("Total Memory (MB)", str(config.total_memory))
+    table.add_row("Memory Unit", config.total_memory_unit)
+    table.add_row("CPU Count", str(config.cpu_num))
+    table.add_row("Connection Count", str(config.connection_num))
+    table.add_row("Hard Drive Type", config.hd_type)
+
+    console.print(table)
+    console.print()
+
+
 @click.group()
 def cli() -> None:
     """AutoPG CLI tool for PostgreSQL configuration and system analysis."""
@@ -140,6 +160,9 @@ def build_config(pg_path: str) -> None:
         connection_num=env.NUM_CONNECTIONS,
         hd_type=env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
     )
+
+    # Display detected parameters
+    display_detected_params(config_payload)
 
     # Initialize PostgreSQL config calculator
     pg_config = PostgresConfig(config_payload)
@@ -183,6 +206,18 @@ def build_config(pg_path: str) -> None:
 
     # Merge configurations, preferring existing values
     final_config = {**new_config, **existing_config}
+
+    # Re-format based on known units
+    for key in [
+        "shared_buffers",
+        "effective_cache_size",
+        "maintenance_work_mem",
+        "wal_buffers",
+        "work_mem",
+        "min_wal_size",
+        "max_wal_size",
+    ]:
+        final_config[key] = format_kb_value(final_config[key])
 
     # Display the differences
     display_config_diff(existing_config, final_config)

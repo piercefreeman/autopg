@@ -4,11 +4,17 @@
 [![Docker build status](https://github.com/piercefreeman/autopg/actions/workflows/docker.yml/badge.svg)](https://github.com/piercefreeman/autopg/actions)
 [![Test status](https://github.com/piercefreeman/autopg/actions/workflows/test.yml/badge.svg)](https://github.com/piercefreeman/autopg/actions)
 
-Auto-optimizations for postgres to maximize host hardware.
+Auto-optimizations for postgres to maximize speed and utilization of host hardware.
 
-![Terminal](./docs/header.png)
+<p align="center">
+  <picture align="center">
+    <img src="./docs/header.png" alt="Terminal" style="height: 400px;" />
+</picture>
+</p>
 
-This is a proof-of-concept Docker image to automatically optimize the PostgreSQL configuration depending on the host device.
+<p align="center">
+  <i>Postgres optimized for an M1 Mac. max_worker_processes and shared_buffers are set to optimal values.</i>
+</p>
 
 ## Usage
 

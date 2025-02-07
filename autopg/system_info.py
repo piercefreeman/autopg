@@ -4,7 +4,7 @@ from enum import StrEnum
 import psutil
 from rich.console import Console
 
-from autopg.constants import HARD_DRIVE_HDD, HARD_DRIVE_SSD
+from autopg.constants import HARD_DRIVE_HDD, HARD_DRIVE_SAN, HARD_DRIVE_SSD
 
 console = Console()
 
@@ -23,6 +23,7 @@ class CpuInfo:
 
 class DiskType(StrEnum):
     SSD = HARD_DRIVE_SSD
+    SAN = HARD_DRIVE_SAN
     HDD = HARD_DRIVE_HDD
 
 

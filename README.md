@@ -28,13 +28,13 @@ We use reasonable system defaults when you launch without any env variables. We 
 
 1. Env overrides for autopg inputs
 
-| Env Variable | Default | Description |
-| ------------ | ------- | ----------- |
-| `AUTOPG_DB_TYPE` | `WEB` | What kind of application will be using the db |
-| `AUTOPG_TOTAL_MEMORY_MB` | `None` | Total memory of the host in MB |
-| `AUTOPG_CPU_COUNT` | `None` | Number of CPUs on the host |
-| `AUTOPG_NUM_CONNECTIONS` | `100` | Max number of concurrent connections to the db |
-| `AUTOPG_PRIMARY_DISK_TYPE` | `None` | Type of the primary disk (SSD or HDD) |
+| Env Variable | Default | Values | Description |
+| ------------ | ------- | ------ | ----------- |
+| `AUTOPG_DB_TYPE` | `WEB` | `WEB`, `OLTP`, `DW`, `DESKTOP`, `MIXED` | What kind of application will be using the db |
+| `AUTOPG_TOTAL_MEMORY_MB` | `None` | Integer | Total memory of the host in MB |
+| `AUTOPG_CPU_COUNT` | `None` | Integer | Number of CPUs on the host |
+| `AUTOPG_NUM_CONNECTIONS` | `100` | Integer | Max number of concurrent connections to the db |
+| `AUTOPG_PRIMARY_DISK_TYPE` | `None` | `SSD`, `HDD`, `SAN` | Type of the primary disk |
 
 2. Existing `postgresql.conf` file
 

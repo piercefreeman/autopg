@@ -260,10 +260,10 @@ class PostgresConfig:
 
         # Determine parallel workers
         parallel_workers = 1
-        for setting in parallel_settings:
-            if setting["key"] == "max_parallel_workers_per_gather":
-                if isinstance(setting["value"], int) and setting["value"] > 0:
-                    parallel_workers = setting["value"]
+        for key, value in parallel_settings.items():
+            if key == "max_parallel_workers_per_gather":
+                if isinstance(value, int) and value > 0:
+                    parallel_workers = value
                 break
 
         # Calculate work_mem

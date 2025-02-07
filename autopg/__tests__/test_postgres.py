@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from autopg.postgres import (
+    CONFIG_TYPES,
     format_kb_value,
     format_postgres_values,
     format_value,
@@ -118,7 +119,7 @@ def test_backup_postgresql_conf(tmp_path: Path) -> None:
 
 def test_format_postgres_values() -> None:
     """Test formatting of configuration values for postgresql.conf"""
-    input_config = {
+    input_config: dict[str, CONFIG_TYPES | None] = {
         "shared_buffers": 128 * 1024,  # Storage value in KB
         "max_connections": 100,  # Integer
         "ssl": "on",  # String

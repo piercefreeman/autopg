@@ -9,13 +9,13 @@ console = Console()
 
 @dataclass
 class MemoryInfo:
-    total: float
+    total: float | None
     available: float
 
 
 @dataclass
 class CpuInfo:
-    count: int
+    count: int | None
     current_freq: float
 
 

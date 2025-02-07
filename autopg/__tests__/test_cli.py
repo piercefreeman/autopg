@@ -1,4 +1,5 @@
-from typing import Generator
+from pathlib import Path
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
@@ -39,7 +40,7 @@ def mock_system_info():
         yield
 
 
-def test_build_config(cli_runner: CliRunner, mock_system_info, tmp_path):
+def test_build_config(cli_runner: CliRunner, mock_system_info: Any, tmp_path: Path):
     """Test that build_config generates a valid configuration file"""
     # Create a mock postgresql.conf in the temporary directory
     pg_conf_dir = tmp_path / "postgresql"

@@ -2,7 +2,6 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from autopg.constants import (
     KNOWN_STORAGE_VARS,
@@ -19,7 +18,7 @@ CONFIG_TYPES = int | float | str | bool
 #
 
 
-def read_postgresql_conf(base_path: str = PG_CONFIG_DIR) -> dict[str, Any]:
+def read_postgresql_conf(base_path: str = PG_CONFIG_DIR) -> dict[str, CONFIG_TYPES]:
     """Read the postgresql.conf file, preferring .base if it exists"""
     conf_path = Path(base_path) / PG_CONFIG_FILE
     base_conf_path = Path(base_path) / PG_CONFIG_FILE_BASE
@@ -28,7 +27,7 @@ def read_postgresql_conf(base_path: str = PG_CONFIG_DIR) -> dict[str, Any]:
     if not target_path.exists():
         return {}
 
-    config: dict[str, str] = {}
+    config: dict[str, CONFIG_TYPES] = {}
     with target_path.open() as f:
         for line in f:
             line = line.strip()
@@ -66,6 +65,8 @@ def format_postgres_values(config: dict[str, CONFIG_TYPES | None]) -> dict[str, 
 
         if key in KNOWN_STORAGE_VARS:
             # Storage values are always strings
+            if not isinstance(value, int):
+                raise ValueError(f"Storage value {key} is not a kb integer: {value}")
             config_value = f"'{format_kb_value(value)}'"
         else:
             # We should only wrap with single quotes if the original value is a string

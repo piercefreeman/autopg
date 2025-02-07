@@ -159,7 +159,10 @@ def build_config(pg_path: str) -> None:
         db_version=postgres_version,
         os_type=os_type,
         db_type=env.DB_TYPE or DB_TYPE_WEB,
-        total_memory=int(env.TOTAL_MEMORY_MB or memory_info.total * 1024),
+        total_memory=(
+            (int(env.TOTAL_MEMORY_MB) if env.TOTAL_MEMORY_MB else None)
+            or (int(memory_info.total * 1024) if memory_info.total else None)
+        ),
         total_memory_unit=SIZE_UNIT_MB,
         cpu_num=env.CPU_COUNT or cpu_info.count,
         connection_num=env.NUM_CONNECTIONS,

@@ -25,3 +25,7 @@ HARD_DRIVE_HDD = "hdd"
 
 # maximum value for integer fields
 MAX_NUMERIC_VALUE = 999999
+
+PG_CONFIG_DIR = "/etc/postgresql"
+PG_CONFIG_FILE = "postgresql.conf"
+PG_CONFIG_FILE_BASE = "postgresql.conf.base"

@@ -2,20 +2,22 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
+
+from autopg.constants import PG_CONFIG_DIR, PG_CONFIG_FILE, PG_CONFIG_FILE_BASE
 
 
-def read_postgresql_conf(base_path: str = "/etc/postgresql") -> Dict[str, Any]:
+def read_postgresql_conf(base_path: str = PG_CONFIG_DIR) -> dict[str, Any]:
     """Read the postgresql.conf file, preferring .base if it exists"""
-    conf_path = Path(base_path) / "postgresql.conf"
-    base_conf_path = Path(base_path) / "postgresql.conf.base"
+    conf_path = Path(base_path) / PG_CONFIG_FILE
+    base_conf_path = Path(base_path) / PG_CONFIG_FILE_BASE
 
     target_path = base_conf_path if base_conf_path.exists() else conf_path
     if not target_path.exists():
         return {}
 
-    config = {}
-    with open(target_path) as f:
+    config : dict[str, str] = {}
+    with target_path.open() as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
@@ -51,19 +53,21 @@ def get_postgres_version() -> int:
         raise ValueError(f"Failed to get PostgreSQL version: {str(e)}") from e
 
 
-def format_value(value: Union[int, float, str]) -> str:
+def format_value(value: int | float | str | bool) -> str:
     """Format configuration values appropriately"""
-    if isinstance(value, (int, float)):
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, (int, float)):
         return str(value)
     return f"'{value}'"
 
 
 def write_postgresql_conf(
-    config: Dict[str, Any], base_path: str = "/etc/postgresql", backup: bool = True
+    config: dict[str, Any], base_path: str = PG_CONFIG_DIR, backup: bool = True
 ) -> None:
     """Write the postgresql.conf file and optionally backup the old one"""
-    conf_path = Path(base_path) / "postgresql.conf"
-    base_conf_path = Path(base_path) / "postgresql.conf.base"
+    conf_path = Path(base_path) / PG_CONFIG_FILE
+    base_conf_path = Path(base_path) / PG_CONFIG_FILE_BASE
 
     # Backup existing config if requested
     if backup and conf_path.exists():

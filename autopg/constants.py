@@ -19,9 +19,9 @@ SIZE_UNIT_MB = "MB"
 SIZE_UNIT_GB = "GB"
 
 # harddrive types
-HARD_DRIVE_SSD = "ssd"
-HARD_DRIVE_SAN = "san"
-HARD_DRIVE_HDD = "hdd"
+HARD_DRIVE_SSD = "SSD"
+HARD_DRIVE_SAN = "SAN"
+HARD_DRIVE_HDD = "HDD"
 
 # maximum value for integer fields
 MAX_NUMERIC_VALUE = 999999

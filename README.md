@@ -8,7 +8,7 @@ Auto-optimizations for postgres to maximize speed and utilization of host hardwa
 
 <p align="center">
   <picture align="center">
-    <img src="https://raw.githubusercontent.com/piercefreeman/autopg/refs/heads/main/docs/header.png" alt="Terminal" height="350 />
+    <img src="https://raw.githubusercontent.com/piercefreeman/autopg/refs/heads/main/docs/header.png" alt="Terminal" height="350" />
 </picture>
 </p>
 

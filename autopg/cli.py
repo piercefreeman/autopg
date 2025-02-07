@@ -18,8 +18,13 @@ from autopg.constants import (
     OS_WINDOWS,
     SIZE_UNIT_MB,
 )
-from autopg.logic import Configuration, PostgresConfig, format_kb_value
-from autopg.postgres import get_postgres_version, read_postgresql_conf, write_postgresql_conf
+from autopg.logic import Configuration, PostgresConfig
+from autopg.postgres import (
+    format_postgres_values,
+    get_postgres_version,
+    read_postgresql_conf,
+    write_postgresql_conf,
+)
 from autopg.system_info import get_cpu_info, get_disk_type, get_memory_info
 
 console = Console()
@@ -205,19 +210,7 @@ def build_config(pg_path: str) -> None:
     existing_config = read_postgresql_conf(pg_path)
 
     # Merge configurations, preferring existing values
-    final_config = {**new_config, **existing_config}
-
-    # Re-format based on known units
-    for key in [
-        "shared_buffers",
-        "effective_cache_size",
-        "maintenance_work_mem",
-        "wal_buffers",
-        "work_mem",
-        "min_wal_size",
-        "max_wal_size",
-    ]:
-        final_config[key] = format_kb_value(final_config[key])
+    final_config = format_postgres_values({**new_config, **existing_config})
 
     # Display the differences
     display_config_diff(existing_config, final_config)

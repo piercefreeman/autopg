@@ -42,10 +42,8 @@ from autopg.constants import (
     OS_LINUX,
     OS_WINDOWS,
     SIZE_UNIT_GB,
+    SIZE_UNIT_MAP,
 )
-
-# Constants
-SIZE_UNIT_MAP: dict[str, int] = {"KB": 1024, "MB": 1048576, "GB": 1073741824, "TB": 1099511627776}
 
 
 class Configuration(BaseModel):
@@ -302,25 +300,3 @@ class PostgresConfig:
                 {"key": "max_wal_senders", "value": "0"},
             ]
         return []
-
-
-def format_kb_value(value: int) -> str:
-    """
-    Format a value in kilobytes to a human readable string with appropriate unit.
-    The function will use the largest unit (GB, MB, KB) that results in a whole number.
-
-    Args:
-        value: The value in kilobytes to format
-
-    Returns:
-        A formatted string with the value and unit (e.g. "1GB", "100MB", "64kB")
-    """
-    # 0 is a special case
-    if value == 0:
-        return "0kB"
-
-    if value % (SIZE_UNIT_MAP["GB"] // SIZE_UNIT_MAP["KB"]) == 0:
-        return f"{value // (SIZE_UNIT_MAP['GB'] // SIZE_UNIT_MAP['KB'])}GB"
-    elif value % (SIZE_UNIT_MAP["MB"] // SIZE_UNIT_MAP["KB"]) == 0:
-        return f"{value // (SIZE_UNIT_MAP['MB'] // SIZE_UNIT_MAP['KB'])}MB"
-    return f"{value}kB"

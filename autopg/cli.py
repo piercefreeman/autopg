@@ -25,47 +25,47 @@ from autopg.postgres import (
     read_postgresql_conf,
     write_postgresql_conf,
 )
-from autopg.system_info import get_cpu_info, get_disk_type, get_memory_info
+from autopg.system_info import DiskType, get_cpu_info, get_disk_type, get_memory_info
 
 console = Console()
 
 
 class DBType(StrEnum):
     WEB = "web"
+    """
+    Web Application
+    Typically CPU-bound, DB much smaller than RAM, 90% or more simple queries
+    """
+
     OLTP = "oltp"
+    """
+    Online Transaction Processing
+    Typically CPU- or I/O-bound, DB slightly larger than RAM to 1TB, 20-40% small data write queries
+    """
+
     DW = "dw"
+    """
+    Data Warehouse
+    Typically I/O- or RAM-bound, large bulk loads of data, large complex reporting queries
+    """
+
     DESKTOP = "desktop"
+    """
+    Desktop Application
+    Not a dedicated database, general workstation use
+    """
+
     MIXED = "mixed"
+    """
+    Mixed Type
+    Mixed DW and OLTP characteristics, wide mixture of queries
+    """
 
 
 @dataclass
 class DBDefinition:
     name: str
     description: str
-
-
-DB_TYPES = {
-    DBType.WEB: DBDefinition(
-        name="Web Application",
-        description="Typically CPU-bound, DB much smaller than RAM, 90% or more simple queries",
-    ),
-    DBType.OLTP: DBDefinition(
-        name="Online Transaction Processing",
-        description="Typically CPU- or I/O-bound, DB slightly larger than RAM to 1TB, 20-40% small data write queries",
-    ),
-    DBType.DW: DBDefinition(
-        name="Data Warehouse",
-        description="Typically I/O- or RAM-bound, large bulk loads of data, large complex reporting queries",
-    ),
-    DBType.DESKTOP: DBDefinition(
-        name="Desktop Application",
-        description="Not a dedicated database, general workstation use",
-    ),
-    DBType.MIXED: DBDefinition(
-        name="Mixed Type",
-        description="Mixed DW and OLTP characteristics, wide mixture of queries",
-    ),
-}
 
 
 class EnvOverrides(BaseSettings):
@@ -78,7 +78,7 @@ class EnvOverrides(BaseSettings):
     TOTAL_MEMORY_MB: int | None = None
     CPU_COUNT: int | None = None
     NUM_CONNECTIONS: int | None = 100
-    PRIMARY_DISK_TYPE: str | None = None
+    PRIMARY_DISK_TYPE: DiskType | None = None
 
     model_config = {"env_file": ".env", "env_prefix": "AUTOPG_"}
 

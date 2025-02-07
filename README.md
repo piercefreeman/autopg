@@ -8,7 +8,7 @@ Auto-optimizations for postgres to maximize speed and utilization of host hardwa
 
 <p align="center">
   <picture align="center">
-    <img src="./docs/header.png" alt="Terminal" style="height: 400px;" />
+    <img src="./docs/header.png" alt="Terminal" style="height: 250px;" />
 </picture>
 </p>
 

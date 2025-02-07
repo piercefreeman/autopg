@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from math import ceil
-from typing import Optional
+from typing import Callable
 
 from pydantic import BaseModel
 
@@ -42,10 +42,8 @@ from autopg.constants import (
     OS_LINUX,
     OS_WINDOWS,
     SIZE_UNIT_GB,
+    SIZE_UNIT_MAP,
 )
-
-# Constants
-SIZE_UNIT_MAP: dict[str, int] = {"KB": 1024, "MB": 1048576, "GB": 1073741824, "TB": 1099511627776}
 
 
 class Configuration(BaseModel):
@@ -98,12 +96,12 @@ class PostgresConfig:
         if memory_kb is None:
             return None
 
-        shared_buffers_map = {
-            DB_TYPE_WEB: lambda x: x // 4,
-            DB_TYPE_OLTP: lambda x: x // 4,
-            DB_TYPE_DW: lambda x: x // 4,
-            DB_TYPE_DESKTOP: lambda x: x // 16,
-            DB_TYPE_MIXED: lambda x: x // 4,
+        shared_buffers_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: x / 4,
+            DB_TYPE_OLTP: lambda x: x / 4,
+            DB_TYPE_DW: lambda x: x / 4,
+            DB_TYPE_DESKTOP: lambda x: x / 16,
+            DB_TYPE_MIXED: lambda x: x / 4,
         }
 
         value = shared_buffers_map[self.state.db_type](memory_kb)
@@ -120,12 +118,12 @@ class PostgresConfig:
         if memory_kb is None:
             return None
 
-        cache_map = {
-            DB_TYPE_WEB: lambda x: (x * 3) // 4,
-            DB_TYPE_OLTP: lambda x: (x * 3) // 4,
-            DB_TYPE_DW: lambda x: (x * 3) // 4,
-            DB_TYPE_DESKTOP: lambda x: x // 4,
-            DB_TYPE_MIXED: lambda x: (x * 3) // 4,
+        cache_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: (x * 3) / 4,
+            DB_TYPE_OLTP: lambda x: (x * 3) / 4,
+            DB_TYPE_DW: lambda x: (x * 3) / 4,
+            DB_TYPE_DESKTOP: lambda x: x / 4,
+            DB_TYPE_MIXED: lambda x: (x * 3) / 4,
         }
         return int(cache_map[self.state.db_type](memory_kb))
 
@@ -134,12 +132,12 @@ class PostgresConfig:
         if memory_kb is None:
             return None
 
-        maintenance_map = {
-            DB_TYPE_WEB: lambda x: x // 16,
-            DB_TYPE_OLTP: lambda x: x // 16,
-            DB_TYPE_DW: lambda x: x // 8,
-            DB_TYPE_DESKTOP: lambda x: x // 16,
-            DB_TYPE_MIXED: lambda x: x // 16,
+        maintenance_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: x / 16,
+            DB_TYPE_OLTP: lambda x: x / 16,
+            DB_TYPE_DW: lambda x: x / 8,
+            DB_TYPE_DESKTOP: lambda x: x / 16,
+            DB_TYPE_MIXED: lambda x: x / 16,
         }
 
         value = maintenance_map[self.state.db_type](memory_kb)
@@ -154,7 +152,7 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_checkpoint_segments(self) -> list[dict[str, str | float]]:
+    def get_checkpoint_segments(self) -> dict[str, str | float]:
         min_wal_size_map = {
             DB_TYPE_WEB: 1024 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
             DB_TYPE_OLTP: 2048 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
@@ -171,15 +169,15 @@ class PostgresConfig:
             DB_TYPE_MIXED: 4096 * SIZE_UNIT_MAP["MB"] / SIZE_UNIT_MAP["KB"],
         }
 
-        return [
-            {"key": "min_wal_size", "value": min_wal_size_map[self.state.db_type]},
-            {"key": "max_wal_size", "value": max_wal_size_map[self.state.db_type]},
-        ]
+        return {
+            "min_wal_size": min_wal_size_map[self.state.db_type],
+            "max_wal_size": max_wal_size_map[self.state.db_type],
+        }
 
     def get_checkpoint_completion_target(self) -> float:
         return 0.9  # based on https://github.com/postgres/postgres/commit/bbcc4eb2
 
-    def get_wal_buffers(self) -> Optional[int]:
+    def get_wal_buffers(self) -> int | None:
         shared_buffers = self.get_shared_buffers()
         if shared_buffers is None:
             return None
@@ -217,16 +215,16 @@ class PostgresConfig:
         cost_map = {HARD_DRIVE_HDD: 4.0, HARD_DRIVE_SSD: 1.1, HARD_DRIVE_SAN: 1.1}
         return cost_map[self.state.hd_type]
 
-    def get_effective_io_concurrency(self) -> Optional[int]:
+    def get_effective_io_concurrency(self) -> int | None:
         if self.state.os_type != OS_LINUX:
             return None
 
         concurrency_map = {HARD_DRIVE_HDD: 2, HARD_DRIVE_SSD: 200, HARD_DRIVE_SAN: 300}
         return concurrency_map[self.state.hd_type]
 
-    def get_parallel_settings(self) -> list[dict[str, str | int]]:
+    def get_parallel_settings(self) -> dict[str, str | int]:
         if not self.state.cpu_num or self.state.cpu_num < 4:
-            return []
+            return {}
 
         workers_per_gather = ceil(self.state.cpu_num / 2)
 
@@ -234,26 +232,24 @@ class PostgresConfig:
             #  no clear evidence, that each new worker will provide big benefit for each new core
             workers_per_gather = 4
 
-        config = [
-            {"key": "max_worker_processes", "value": self.state.cpu_num},
-            {"key": "max_parallel_workers_per_gather", "value": workers_per_gather},
-        ]
+        config: dict[str, str | int] = {
+            "max_worker_processes": self.state.cpu_num,
+            "max_parallel_workers_per_gather": workers_per_gather,
+        }
 
         if self.state.db_version >= 10:
-            config.append({"key": "max_parallel_workers", "value": self.state.cpu_num})
+            config["max_parallel_workers"] = self.state.cpu_num
 
         if self.state.db_version >= 11:
             parallel_maintenance_workers = ceil(self.state.cpu_num / 2)
             if parallel_maintenance_workers > 4:
                 parallel_maintenance_workers = 4
 
-            config.append(
-                {"key": "max_parallel_maintenance_workers", "value": parallel_maintenance_workers}
-            )
+            config["max_parallel_maintenance_workers"] = parallel_maintenance_workers
 
         return config
 
-    def get_work_mem(self) -> Optional[int]:
+    def get_work_mem(self) -> int | None:
         memory_kb = self.get_total_memory_in_kb()
         shared_buffers = self.get_shared_buffers()
         if memory_kb is None or shared_buffers is None:
@@ -264,16 +260,16 @@ class PostgresConfig:
 
         # Determine parallel workers
         parallel_workers = 1
-        for setting in parallel_settings:
-            if setting["key"] == "max_parallel_workers_per_gather":
-                if setting["value"] > 0:
-                    parallel_workers = setting["value"]
+        for key, value in parallel_settings.items():
+            if key == "max_parallel_workers_per_gather":
+                if isinstance(value, int) and value > 0:
+                    parallel_workers = value
                 break
 
         # Calculate work_mem
-        work_mem = (memory_kb - shared_buffers) / (max_connections * 3) / parallel_workers
+        work_mem = float(memory_kb - shared_buffers) / (max_connections * 3) / parallel_workers
 
-        work_mem_map = {
+        work_mem_map: dict[str, Callable[[float], float]] = {
             DB_TYPE_WEB: lambda x: x,
             DB_TYPE_OLTP: lambda x: x,
             DB_TYPE_DW: lambda x: x / 2,
@@ -295,32 +291,10 @@ class PostgresConfig:
             return ["WARNING", "this tool not being optimal", "for very high memory systems"]
         return []
 
-    def get_wal_level(self) -> list[dict[str, str]]:
+    def get_wal_level(self) -> dict[str, str]:
         if self.state.db_type == DB_TYPE_DESKTOP:
-            return [
-                {"key": "wal_level", "value": "minimal"},
-                {"key": "max_wal_senders", "value": "0"},
-            ]
-        return []
-
-
-def format_kb_value(value: int) -> str:
-    """
-    Format a value in kilobytes to a human readable string with appropriate unit.
-    The function will use the largest unit (GB, MB, KB) that results in a whole number.
-
-    Args:
-        value: The value in kilobytes to format
-
-    Returns:
-        A formatted string with the value and unit (e.g. "1GB", "100MB", "64kB")
-    """
-    # 0 is a special case
-    if value == 0:
-        return "0kB"
-
-    if value % (SIZE_UNIT_MAP["GB"] // SIZE_UNIT_MAP["KB"]) == 0:
-        return f"{value // (SIZE_UNIT_MAP['GB'] // SIZE_UNIT_MAP['KB'])}GB"
-    elif value % (SIZE_UNIT_MAP["MB"] // SIZE_UNIT_MAP["KB"]) == 0:
-        return f"{value // (SIZE_UNIT_MAP['MB'] // SIZE_UNIT_MAP['KB'])}MB"
-    return f"{value}kB"
+            return {
+                "wal_level": "minimal",
+                "max_wal_senders": "0",
+            }
+        return {}

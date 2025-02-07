@@ -1,22 +1,42 @@
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from enum import StrEnum
 
 import psutil
 from rich.console import Console
 
+from autopg.constants import HARD_DRIVE_HDD, HARD_DRIVE_SSD
+
 console = Console()
 
 
-def get_memory_info() -> Tuple[float, float]:
+@dataclass
+class MemoryInfo:
+    total: float | None
+    available: float
+
+
+@dataclass
+class CpuInfo:
+    count: int | None
+    current_freq: float
+
+
+class DiskType(StrEnum):
+    SSD = HARD_DRIVE_SSD
+    HDD = HARD_DRIVE_HDD
+
+
+def get_memory_info() -> MemoryInfo:
     """
     Get the total and available memory in GB
     """
     vm = psutil.virtual_memory()
     total_gb = vm.total / (1024**3)
     available_gb = vm.available / (1024**3)
-    return total_gb, available_gb
+    return MemoryInfo(total=total_gb, available=available_gb)
 
 
-def get_cpu_info() -> Tuple[int, float]:
+def get_cpu_info() -> CpuInfo:
     """
     Get CPU count and current frequency
     """
@@ -24,10 +44,10 @@ def get_cpu_info() -> Tuple[int, float]:
     # Get the average frequency across all CPUs
     freq = psutil.cpu_freq()
     current_freq = freq.current if freq else 0.0
-    return cpu_count, current_freq
+    return CpuInfo(count=cpu_count, current_freq=current_freq)
 
 
-def get_disk_type() -> Optional[str]:
+def get_disk_type() -> DiskType | None:
     """
     Attempt to determine if the primary disk is SSD or HDD
     """
@@ -45,7 +65,7 @@ def get_disk_type() -> Optional[str]:
                 if os.path.exists(rotational_path):
                     with open(rotational_path, "r") as f:
                         rotational = int(f.read().strip())
-                        return "HDD" if rotational == 1 else "SSD"
+                        return DiskType.HDD if rotational == 1 else DiskType.SSD
         return None
     except Exception:
         return None

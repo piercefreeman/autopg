@@ -25,3 +25,19 @@ HARD_DRIVE_HDD = "hdd"
 
 # maximum value for integer fields
 MAX_NUMERIC_VALUE = 999999
+
+SIZE_UNIT_MAP: dict[str, int] = {"KB": 1024, "MB": 1048576, "GB": 1073741824, "TB": 1099511627776}
+
+KNOWN_STORAGE_VARS = [
+    "shared_buffers",
+    "effective_cache_size",
+    "maintenance_work_mem",
+    "wal_buffers",
+    "work_mem",
+    "min_wal_size",
+    "max_wal_size",
+]
+
+PG_CONFIG_DIR = "/etc/postgresql"
+PG_CONFIG_FILE = "postgresql.conf"
+PG_CONFIG_FILE_BASE = "postgresql.conf.base"

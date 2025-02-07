@@ -1,6 +1,35 @@
 # autopg
 
+![Terminal](./docs/header.png)
+
 Auto-optimizations for postgres. This is a proof-of-concept Docker image to automatically optimize the PostgreSQL configuration depending on the host device.
+
+## Usage
+
+`autopg` should be a direct replacement for using the `postgres` docker image in your architecture - be that Docker, Kubernetes, etc.
+
+For example, in `docker-compose.yml` file, add the following:
+
+```yaml
+services:
+  postgres:
+    image: ghcr.io/piercefreeman/autopg:pg16-latest
+    ports:
+      - 5432:5432
+```
+
+We build images following `{postgres_version}-{autopg_version}` tags. Use this table to find your desired version:
+
+| Postgres Version | Autopg Version | Tag |
+| ---------------- | -------------- | --- |
+| 17               | 0.1.0          | autopg:17-0.1.0 |
+| 16               | 0.1.0          | autopg:16-0.1.0 |
+| 15               | 0.1.0          | autopg:15-0.1.0 |
+| 14               | 0.1.0          | autopg:14-0.1.0 |
+| 13               | 0.1.0          | autopg:13-0.1.0 |
+| 12               | 0.1.0          | autopg:12-0.1.0 |
+| 11               | 0.1.0          | autopg:11-0.1.0 |
+| 10               | 0.1.0          | autopg:10-0.1.0 |
 
 ## Algorithm
 

@@ -206,10 +206,8 @@ def build_config(pg_path: str) -> None:
     if io_concurrency is not None:
         new_config["effective_io_concurrency"] = io_concurrency
 
-    # Read existing configuration
-    existing_config = read_postgresql_conf(pg_path)
-
     # Merge configurations, preferring existing values
+    existing_config = read_postgresql_conf(pg_path)
     final_config = format_postgres_values({**new_config, **existing_config})
 
     # Display the differences

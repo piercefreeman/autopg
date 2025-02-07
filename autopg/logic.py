@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from math import ceil
-from typing import Optional
+from typing import Callable, Optional
 
 from pydantic import BaseModel
 
@@ -50,10 +50,10 @@ class Configuration(BaseModel):
     db_version: float = DEFAULT_DB_VERSION
     os_type: str = OS_LINUX
     db_type: str = DB_TYPE_WEB
-    total_memory: int | None = None
+    total_memory: Optional[int] = None
     total_memory_unit: str = SIZE_UNIT_GB
-    cpu_num: int | None = None
-    connection_num: int | None = None
+    cpu_num: Optional[int] = None
+    connection_num: Optional[int] = None
     hd_type: str = HARD_DRIVE_SSD
 
 
@@ -91,17 +91,17 @@ class PostgresConfig:
             return "off"
         return "try" if memory_kb >= 33554432 else "off"
 
-    def get_shared_buffers(self) -> int | None:
+    def get_shared_buffers(self) -> Optional[int]:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
 
-        shared_buffers_map = {
-            DB_TYPE_WEB: lambda x: x // 4,
-            DB_TYPE_OLTP: lambda x: x // 4,
-            DB_TYPE_DW: lambda x: x // 4,
-            DB_TYPE_DESKTOP: lambda x: x // 16,
-            DB_TYPE_MIXED: lambda x: x // 4,
+        shared_buffers_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: x / 4,
+            DB_TYPE_OLTP: lambda x: x / 4,
+            DB_TYPE_DW: lambda x: x / 4,
+            DB_TYPE_DESKTOP: lambda x: x / 16,
+            DB_TYPE_MIXED: lambda x: x / 4,
         }
 
         value = shared_buffers_map[self.state.db_type](memory_kb)
@@ -113,31 +113,31 @@ class PostgresConfig:
 
         return int(value)
 
-    def get_effective_cache_size(self) -> int | None:
+    def get_effective_cache_size(self) -> Optional[int]:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
 
-        cache_map = {
-            DB_TYPE_WEB: lambda x: (x * 3) // 4,
-            DB_TYPE_OLTP: lambda x: (x * 3) // 4,
-            DB_TYPE_DW: lambda x: (x * 3) // 4,
-            DB_TYPE_DESKTOP: lambda x: x // 4,
-            DB_TYPE_MIXED: lambda x: (x * 3) // 4,
+        cache_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: (x * 3) / 4,
+            DB_TYPE_OLTP: lambda x: (x * 3) / 4,
+            DB_TYPE_DW: lambda x: (x * 3) / 4,
+            DB_TYPE_DESKTOP: lambda x: x / 4,
+            DB_TYPE_MIXED: lambda x: (x * 3) / 4,
         }
         return int(cache_map[self.state.db_type](memory_kb))
 
-    def get_maintenance_work_mem(self) -> int | None:
+    def get_maintenance_work_mem(self) -> Optional[int]:
         memory_kb = self.get_total_memory_in_kb()
         if memory_kb is None:
             return None
 
-        maintenance_map = {
-            DB_TYPE_WEB: lambda x: x // 16,
-            DB_TYPE_OLTP: lambda x: x // 16,
-            DB_TYPE_DW: lambda x: x // 8,
-            DB_TYPE_DESKTOP: lambda x: x // 16,
-            DB_TYPE_MIXED: lambda x: x // 16,
+        maintenance_map: dict[str, Callable[[float], float]] = {
+            DB_TYPE_WEB: lambda x: x / 16,
+            DB_TYPE_OLTP: lambda x: x / 16,
+            DB_TYPE_DW: lambda x: x / 8,
+            DB_TYPE_DESKTOP: lambda x: x / 16,
+            DB_TYPE_MIXED: lambda x: x / 16,
         }
 
         value = maintenance_map[self.state.db_type](memory_kb)
@@ -264,14 +264,14 @@ class PostgresConfig:
         parallel_workers = 1
         for setting in parallel_settings:
             if setting["key"] == "max_parallel_workers_per_gather":
-                if setting["value"] > 0:
+                if isinstance(setting["value"], int) and setting["value"] > 0:
                     parallel_workers = setting["value"]
                 break
 
         # Calculate work_mem
-        work_mem = (memory_kb - shared_buffers) / (max_connections * 3) / parallel_workers
+        work_mem = float(memory_kb - shared_buffers) / (max_connections * 3) / parallel_workers
 
-        work_mem_map = {
+        work_mem_map: dict[str, Callable[[float], float]] = {
             DB_TYPE_WEB: lambda x: x,
             DB_TYPE_OLTP: lambda x: x,
             DB_TYPE_DW: lambda x: x / 2,

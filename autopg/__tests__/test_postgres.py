@@ -9,6 +9,8 @@ from autopg.postgres import (
     format_postgres_values,
     format_value,
     get_postgres_version,
+    parse_storage_value,
+    parse_value,
     read_postgresql_conf,
     write_postgresql_conf,
 )
@@ -66,24 +68,6 @@ def test_read_postgresql_conf(tmp_path: Path) -> None:
     assert config == {"shared_buffers": 256 * 1024}
 
 
-@pytest.mark.parametrize(
-    "input_value,expected_output",
-    [
-        (100, "100"),
-        (3.14, "3.14"),
-        ("128MB", "128MB"),
-        ("on", "on"),
-        (0, "0"),
-        (-1, "-1"),
-        (True, "true"),
-        (False, "false"),
-    ],
-)
-def test_format_value(input_value: int | float | str | bool, expected_output: str) -> None:
-    """Test formatting of different configuration value types"""
-    assert format_value(input_value) == expected_output
-
-
 def test_write_postgresql_conf(tmp_path: Path) -> None:
     """Test writing PostgreSQL configuration to a file"""
     conf_dir = tmp_path / "postgresql"
@@ -132,28 +116,91 @@ def test_backup_postgresql_conf(tmp_path: Path) -> None:
     assert base_conf.read_text() == "existing_param = 'value'"
 
 
+def test_format_postgres_values() -> None:
+    """Test formatting of configuration values for postgresql.conf"""
+    input_config = {
+        "shared_buffers": 128 * 1024,  # Storage value in KB
+        "max_connections": 100,  # Integer
+        "ssl": "on",  # String
+        "enable_seqscan": True,  # Boolean
+    }
+
+    formatted = format_postgres_values(input_config)
+    assert formatted == {
+        "shared_buffers": "'128MB'",
+        "max_connections": "100",
+        "ssl": "'on'",
+        "enable_seqscan": "true",
+    }
+
+
+#
+# Formatting
+#
+
+
 @pytest.mark.parametrize(
-    "kb_value,expected",
+    "input_value,expected_output",
     [
-        # GB cases
-        (1048576, "1GB"),  # 1 GB
-        (2097152, "2GB"),  # 2 GB
-        (5242880, "5GB"),  # 5 GB
-        # MB cases
-        (1024, "1MB"),  # 1 MB
-        (2048, "2MB"),  # 2 MB
-        (51200, "50MB"),  # 50 MB
-        # KB cases
-        (1, "1kB"),  # 1 KB
-        (512, "512kB"),  # 512 KB
-        (1000, "1000kB"),  # Not quite 1 MB, should stay as KB
-        # Edge cases
-        (0, "0kB"),
+        (100, "100"),
+        (3.14, "3.14"),
+        ("128MB", "128MB"),
+        ("on", "on"),
+        (0, "0"),
+        (-1, "-1"),
+        (True, "true"),
+        (False, "false"),
     ],
 )
-def test_format_kb_value(kb_value: int, expected: str):
-    """
-    Test the format_kb_value function with various inputs to ensure it correctly
-    formats values in kilobytes to the most appropriate unit (GB, MB, or kB).
-    """
-    assert format_kb_value(kb_value) == expected
+def test_format_value(input_value: int | float | str | bool, expected_output: str) -> None:
+    """Test formatting of different configuration value types"""
+    assert format_value(input_value) == expected_output
+
+
+@pytest.mark.parametrize(
+    "input_str,expected_output",
+    [
+        ("true", True),
+        ("false", False),
+        ("TRUE", True),
+        ("FALSE", False),
+        ("123", 123),
+        ("hello", "hello"),
+        ("3.14", "3.14"),  # Non-integer strings remain strings
+    ],
+)
+def test_parse_value(input_str: str, expected_output: int | float | str | bool) -> None:
+    """Test parsing of different configuration value types"""
+    assert parse_value(input_str) == expected_output
+
+
+@pytest.mark.parametrize(
+    "input_str,expected_kb",
+    [
+        ("1GB", 1048576),  # 1GB = 1024 * 1024 KB
+        ("512MB", 524288),  # 512MB = 512 * 1024 KB
+        ("64kB", 64),  # Direct KB value
+        ("0kB", 0),  # Zero case
+    ],
+)
+def test_parse_storage_value(input_str: str, expected_kb: int) -> None:
+    """Test parsing of storage values into kilobytes"""
+    assert parse_storage_value(input_str) == expected_kb
+
+
+@pytest.mark.parametrize(
+    "input_kb,expected_str",
+    [
+        (1048576, "1GB"),  # 1GB case
+        (524288, "512MB"),  # MB case
+        (64, "64kB"),  # Direct KB case
+        (0, "0kB"),  # Zero case
+        # Edge cases between units
+        (1024, "1MB"),  # Exactly 1MB
+        (2048, "2MB"),  # Exactly 2MB
+        (1073741824, "1024GB"),  # Large number
+    ],
+)
+def test_format_kb_value(input_kb: int, expected_str: str) -> None:
+    """Test formatting of kilobyte values into human readable strings"""
+    assert format_kb_value(input_kb) == expected_str

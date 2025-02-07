@@ -315,6 +315,10 @@ def format_kb_value(value: int) -> str:
     Returns:
         A formatted string with the value and unit (e.g. "1GB", "100MB", "64kB")
     """
+    # 0 is a special case
+    if value == 0:
+        return "0kB"
+
     if value % (SIZE_UNIT_MAP["GB"] // SIZE_UNIT_MAP["KB"]) == 0:
         return f"{value // (SIZE_UNIT_MAP['GB'] // SIZE_UNIT_MAP['KB'])}GB"
     elif value % (SIZE_UNIT_MAP["MB"] // SIZE_UNIT_MAP["KB"]) == 0:

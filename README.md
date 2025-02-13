@@ -6,16 +6,6 @@
 
 Auto-optimizations for postgres to maximize speed and utilization of host hardware.
 
-<p align="center">
-  <picture align="center">
-    <img src="https://raw.githubusercontent.com/piercefreeman/autopg/refs/heads/main/docs/header.png?raw=true" alt="Terminal" height="350" />
-</picture>
-</p>
-
-<p align="center">
-  <i>Postgres optimized for an M1 Mac. max_worker_processes and shared_buffers are set to optimal values.</i>
-</p>
-
 ## Usage
 
 `autopg` should be a direct replacement for using the `postgres` docker image in your architecture - be that Docker, Kubernetes, etc.

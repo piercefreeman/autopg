@@ -63,3 +63,4 @@ def test_build_config(cli_runner: CliRunner, mock_system_info: Any, tmp_path: Pa
     assert "shared_buffers" in config_content
     assert "effective_cache_size" in config_content
     assert "work_mem" in config_content
+    assert "max_connections" in config_content

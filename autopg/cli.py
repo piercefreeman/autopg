@@ -185,6 +185,7 @@ def build_config(pg_path: str) -> None:
         "default_statistics_target": pg_config.get_default_statistics_target(),
         "random_page_cost": pg_config.get_random_page_cost(),
         "checkpoint_completion_target": pg_config.get_checkpoint_completion_target(),
+        "max_connections": pg_config.get_max_connections(),
     }
 
     # Add WAL settings

@@ -44,10 +44,7 @@ We build images following {postgres_version}-{autopg_version} tags. Use this tab
 | 16               | latest          | `autopg:16-latest` |
 | 15               | latest          | `autopg:15-latest` |
 | 14               | latest          | `autopg:14-latest` |
-| 13               | latest          | `autopg:13-latest` |
-| 12               | latest          | `autopg:12-latest` |
-| 11               | latest          | `autopg:11-latest` |
-| 10               | latest          | `autopg:10-latest` |
+
 
 ## Algorithm
 

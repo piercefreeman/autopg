@@ -128,7 +128,7 @@ def cleanup_container(container_id: str) -> None:
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("postgres_version", ["16", "17"])
+@pytest.mark.parametrize("postgres_version", ["14", "15", "16", "17"])
 def test_docker_max_connections(temp_workspace: Path, postgres_version: str) -> None:
     """
     Test that Docker image correctly applies PostgreSQL configuration changes.

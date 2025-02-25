@@ -73,6 +73,18 @@ docker build --build-arg POSTGRES_VERSION=16 -t autopg .
 docker run -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password autopg
 ```
 
+## Unit Test
+
+We have unit tests for the logic and integration tests for the docker image.
+
+```bash
+uv run pytest -vvv
+```
+
+```bash
+uv run pytest -vvv -m "integration"
+```
+
 ## Limitations
 
 - Right now we write the optimization logic in Python so our postgres container relies on having a python interpreter installed. This adds a bit to space overhead and is potentially a security risk. We'd rather bundle a compiled binary that serves the same purpose.

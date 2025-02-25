@@ -1,5 +1,15 @@
-ARG POSTGRES_VERSION
+# Declare the build argument before FROM
+ARG POSTGRES_VERSION=16
+
+# Use the build argument in FROM
 FROM postgres:${POSTGRES_VERSION}
+
+# Install build dependencies for psycopg2
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy uv from the official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

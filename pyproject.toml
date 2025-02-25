@@ -20,6 +20,7 @@ dev = [
     "pytest>=8.3.4",
     "ruff>=0.3.0",
     "pyright>=1.1.350",
+    "psycopg2>=2.9.10",
 ]
 
 [build-system]

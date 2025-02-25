@@ -207,6 +207,13 @@ def build_config(pg_path: str) -> None:
     if io_concurrency is not None:
         new_config["effective_io_concurrency"] = io_concurrency
 
+    # Add in the docker specific settings
+    new_config["listen_addresses"] = "*"
+    new_config["dynamic_shared_memory_type"] = "posix"
+    new_config["log_timezone"] = "Etc/UTC"
+    new_config["datestyle"] = "iso, mdy"
+    new_config["timezone"] = "Etc/UTC"
+
     # Merge configurations, preferring existing values
     existing_config = read_postgresql_conf(pg_path)
     final_config = format_postgres_values({**new_config, **existing_config})

@@ -22,11 +22,17 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Create a working directory for the package
 WORKDIR /app
 
-# Copy the package files
+# Install dependencies using uv
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --active --no-install-project
+
 COPY . .
 
-# Install dependencies using uv
-RUN uv sync --active
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --active
+
 RUN chmod +x /app/bootstrap.sh
 
 # Keep the original postgres entrypoint

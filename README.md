@@ -1,5 +1,7 @@
 # autopg
 
+![Autopg Logo](https://raw.githubusercontent.com/piercefreeman/autopg/main/media/header.png)
+
 [![Built Versions](https://img.shields.io/badge/autopg:latest-latest-black)](https://github.com/piercefreeman/autopg/pkgs/container/autopg)
 [![Docker build status](https://github.com/piercefreeman/autopg/actions/workflows/docker.yml/badge.svg)](https://github.com/piercefreeman/autopg/actions)
 [![Test status](https://github.com/piercefreeman/autopg/actions/workflows/test.yml/badge.svg)](https://github.com/piercefreeman/autopg/actions)

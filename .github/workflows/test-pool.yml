@@ -1,4 +1,4 @@
-name: Test
+name: Test PgBouncer
 
 on:
   push:
@@ -28,11 +28,13 @@ jobs:
         
     - name: Install dependencies
       run: |
+        cd autopgpool
         uv sync
         
     - name: Run tests
       run: |
-        uv run pytest -vvv autopg
+        cd autopgpool
+        uv run pytest -vvv autopgpool
 
   integration-test:
     runs-on: ubuntu-latest
@@ -55,8 +57,10 @@ jobs:
         
     - name: Install dependencies
       run: |
+        cd autopgpool
         uv sync
         
     - name: Run integration tests
       run: |
-        uv run pytest -vvv -m "integration" autopg
+        cd autopgpool
+        uv run pytest -vvv -m "integration" autopgpool

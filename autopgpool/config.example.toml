@@ -1,0 +1,71 @@
+# AutoPGPool Example Configuration
+
+# User definitions
+[[users]]
+username = "admin"
+password = "admin_password"
+grants = ["main_db", "analytics_db"]
+
+[[users]]
+username = "app_user"
+password = "app_password"
+grants = ["main_db"]
+
+[[users]]
+username = "stats_user"
+password = "stats_password"
+grants = ["analytics_db"]
+
+# Database definitions
+[pools.main_db]
+pool_mode = "transaction"
+
+[pools.main_db.remote]
+host = "localhost"
+port = 5432
+database = "main_db"
+username = "postgres"
+password = "postgres_password"
+
+[pools.analytics_db]
+pool_mode = "session"
+
+[pools.analytics_db.remote]
+host = "10.0.0.5"
+port = 5432
+database = "analytics_db"
+username = "analytics_user"
+password = "analytics_password"
+
+[pools.analytics_db.replica]
+pool_mode = "statement"
+
+[pools.analytics_db.replica.remote]
+host = "replica.example.com"
+port = 5432
+database = "replica_db"
+username = "replica_user"
+password = "replica_password"
+
+# PGBouncer configuration
+[pgbouncer]
+listen_addr = "0.0.0.0"
+listen_port = 6432
+auth_type = "md5"
+pool_mode = "transaction"
+max_client_conn = 200
+default_pool_size = 20
+ignore_startup_parameters = ["extra_float_digits", "search_path"]
+admin_users = ["admin"]
+stats_users = ["stats_user"]
+idle_transaction_timeout = 60
+max_prepared_statements = 25
+
+# Additional custom PGBouncer parameters
+[pgbouncer.passthrough_kwargs]
+server_reset_query = "DISCARD ALL"
+server_check_query = "select 1"
+server_check_delay = 30
+application_name_add_host = 1
+log_disconnections = 1
+log_connections = 1

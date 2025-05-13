@@ -13,7 +13,7 @@ RUN cd /pgbouncer && ./configure --prefix=/usr && make
 
 FROM alpine:3.21
 
-RUN apk add --no-cache busybox libevent postgresql-client && \
+RUN apk add --no-cache python3 py3-pip busybox libevent postgresql-client && \
   mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer && \
   chown -R postgres /var/log/pgbouncer /var/run/pgbouncer /etc/pgbouncer
 

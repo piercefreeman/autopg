@@ -1,12 +1,12 @@
-import os
-import tempfile
 import textwrap
-from typing import Any, List
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any
 
 import pytest
 
+from autopgpool.config import User
 from autopgpool.ini_writer import (
-    User,
     format_ini_value,
     write_ini_file,
     write_userlist_file,
@@ -55,10 +55,8 @@ def test_write_ini_file() -> None:
         # No comment for section2
     }
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        filepath = temp_file.name
-
-    try:
+    with NamedTemporaryFile() as temp_file:
+        filepath = Path(temp_file.name)
         write_ini_file(config, filepath, section_comments)
 
         with open(filepath, "r") as f:
@@ -78,8 +76,6 @@ def test_write_ini_file() -> None:
 
             """)
         assert content == expected_content
-    finally:
-        os.unlink(filepath)
 
 
 def test_write_ini_file_no_comments() -> None:
@@ -90,10 +86,8 @@ def test_write_ini_file_no_comments() -> None:
         },
     }
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        filepath = temp_file.name
-
-    try:
+    with NamedTemporaryFile() as temp_file:
+        filepath = Path(temp_file.name)
         write_ini_file(config, filepath)  # No section_comments
 
         with open(filepath, "r") as f:
@@ -105,8 +99,6 @@ def test_write_ini_file_no_comments() -> None:
 
             """)
         assert content == expected_content
-    finally:
-        os.unlink(filepath)
 
 
 # Test only the plain auth type since we can't easily mock scram-sha-256
@@ -114,14 +106,12 @@ def test_write_ini_file_no_comments() -> None:
 def test_write_userlist_file_plain() -> None:
     """Test writing users to a userlist file with plain auth."""
     users = [
-        User(username="user1", password="pass1"),
-        User(username="user2", password="pass2"),
+        User(username="user1", password="pass1", grants=[]),
+        User(username="user2", password="pass2", grants=[]),
     ]
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        filepath = temp_file.name
-
-    try:
+    with NamedTemporaryFile() as temp_file:
+        filepath = Path(temp_file.name)
         write_userlist_file(users, filepath, "plain")
 
         with open(filepath, "r") as f:
@@ -129,22 +119,18 @@ def test_write_userlist_file_plain() -> None:
 
         expected_content = '"user1" "pass1"\n"user2" "pass2"\n'
         assert content == expected_content
-    finally:
-        os.unlink(filepath)
 
 
 # Test with md5 auth type by mocking hashlib.md5
 def test_write_userlist_file_md5() -> None:
     """Test writing users to a userlist file with md5 auth."""
     users = [
-        User(username="user1", password="pass1"),
-        User(username="user2", password="pass2"),
+        User(username="user1", password="pass1", grants=[]),
+        User(username="user2", password="pass2", grants=[]),
     ]
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        filepath = temp_file.name
-
-    try:
+    with NamedTemporaryFile() as temp_file:
+        filepath = Path(temp_file.name)
         # We're not testing the actual md5 implementation, just that it's used
         write_userlist_file(users, filepath, "md5")
 
@@ -157,23 +143,17 @@ def test_write_userlist_file_md5() -> None:
         assert '"user2" "' in content
         assert content.count('"') == 8  # 4 pairs of quotes
         assert content.count("\n") == 2  # 2 newlines (one per user)
-    finally:
-        os.unlink(filepath)
 
 
 def test_write_userlist_file_empty() -> None:
     """Test writing an empty list of users."""
-    users: List[User] = []
+    users: list[User] = []
 
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        filepath = temp_file.name
-
-    try:
+    with NamedTemporaryFile() as temp_file:
+        filepath = Path(temp_file.name)
         write_userlist_file(users, filepath, "plain")
 
         with open(filepath, "r") as f:
             content = f.read()
 
         assert content == ""
-    finally:
-        os.unlink(filepath)

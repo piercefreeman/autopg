@@ -1,8 +1,8 @@
 import hashlib
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-from autopgpool.config import AUTH_TYPES
+from autopgpool.config import AUTH_TYPES, User
 
 
 def format_ini_value(value: Any) -> str:
@@ -20,8 +20,9 @@ def format_ini_value(value: Any) -> str:
     elif isinstance(value, (int, float)):
         return str(value)
     elif isinstance(value, str):
-        # Escape any quotes in the string and wrap in quotes
-        return f'"{value}"'
+        # For strings, just return the string without quotes
+        # PgBouncer doesn't require quotes for string values in its config
+        return value
     elif isinstance(value, list):
         # For lists, join with commas
         return ", ".join(format_ini_value(item) for item in value)  # type: ignore
@@ -33,7 +34,7 @@ def format_ini_value(value: Any) -> str:
 
 def write_ini_file(
     config: dict[str, dict[str, Any]],
-    filepath: str,
+    filepath: Path,
     section_comments: dict[str, str] | None = None,
 ) -> None:
     """
@@ -63,13 +64,7 @@ def write_ini_file(
             f.write("\n")
 
 
-@dataclass
-class User:
-    username: str
-    password: str
-
-
-def write_userlist_file(users: list[User], filepath: str, encrypt: AUTH_TYPES) -> None:
+def write_userlist_file(users: list[User], filepath: Path, encrypt: AUTH_TYPES) -> None:
     """
     Write a pgbouncer userlist file.
 
@@ -88,12 +83,7 @@ def write_userlist_file(users: list[User], filepath: str, encrypt: AUTH_TYPES) -
             f.write(f'"{user.username}" "{password}"\n')
 
 
-@dataclass
-class UserWithGrants(User):
-    grants: list[str]
-
-
-def write_hba_file(users: list["UserWithGrants"], filepath: str) -> None:
+def write_hba_file(users: list[User], filepath: Path) -> None:
     """
     Write a pgbouncer HBA (host-based authentication) file.
 

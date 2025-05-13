@@ -5,17 +5,14 @@ from pathlib import Path
 from typing import Any
 
 import click
-from rich.console import Console
 
-from autopgpool.config import MainConfig
+from autopgpool.config import MainConfig, User
 from autopgpool.ini_writer import (
-    UserWithGrants,
     write_hba_file,
     write_ini_file,
     write_userlist_file,
 )
-
-console = Console()
+from autopgpool.logging import CONSOLE
 
 DEFAULT_CONFIG_PATH = "/etc/autopgpool/autopgpool.toml"
 DEFAULT_OUTPUT_DIR = "/etc/pgbouncer"
@@ -35,10 +32,10 @@ def load_toml_config(config_path: str) -> dict[str, Any]:
         with open(config_path, "rb") as f:
             return tomllib.load(f)
     except FileNotFoundError:
-        console.print(f"[red]Error: Config file not found at {config_path}[/red]")
+        CONSOLE.print(f"[red]Error: Config file not found at {config_path}[/red]")
         sys.exit(1)
     except tomllib.TOMLDecodeError as e:
-        console.print(f"[red]Error parsing TOML file: {str(e)}[/red]")
+        CONSOLE.print(f"[red]Error parsing TOML file: {str(e)}[/red]")
         sys.exit(1)
 
 
@@ -53,28 +50,25 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
     output_path = Path(output_dir)
     os.makedirs(output_path, exist_ok=True)
 
+    userlist_path = output_path / "userlist.txt"
+    hba_path = output_path / "pgbouncer_hba.conf"
+    ini_path = output_path / "pgbouncer.ini"
+
     # Create users with grants for HBA configuration
-    users_with_grants = [
-        UserWithGrants(username=user.username, password=user.password, grants=user.grants)
+    users = [
+        User(username=user.username, password=user.password, grants=user.grants)
         for user in config.users
     ]
 
     # Write userlist.txt file
-    write_userlist_file(
-        [
-            UserWithGrants(username=u.username, password=u.password, grants=u.grants)
-            for u in config.users
-        ],
-        str(output_path / "userlist.txt"),
-        encrypt=config.pgbouncer.auth_type,
-    )
+    write_userlist_file(users, userlist_path, encrypt=config.pgbouncer.auth_type)
+    CONSOLE.print(f"Wrote userlist file to [bold]{userlist_path}[/bold]")
 
     # Even when the user hasn't requested hba auth, we want to write the HBA file
     # to provide our access grants
-    write_hba_file(
-        users_with_grants,
-        str(output_path / "pgbouncer_hba.conf"),
-    )
+    write_hba_file(users, hba_path)
+    CONSOLE.print(f"Wrote HBA file to [bold]{hba_path}[/bold]")
+
     # Create pgbouncer.ini
     pgbouncer_config = {
         "pgbouncer": {
@@ -82,7 +76,7 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
             **config.pgbouncer.passthrough_kwargs,
             **{
                 "auth_type": "hba",
-                "auth_file": str(output_path / "pgbouncer_hba.conf"),
+                "auth_file": hba_path,
             },
         },
         "databases": {
@@ -96,12 +90,10 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
     }
 
     # Write the pgbouncer.ini file
-    write_ini_file(
-        pgbouncer_config,
-        str(output_path / "pgbouncer.ini"),
-    )
+    write_ini_file(pgbouncer_config, ini_path)
+    CONSOLE.print(f"Wrote pgbouncer.ini file to [bold]{ini_path}[/bold]")
 
-    console.print(f"[green]Successfully wrote configuration to {output_dir}[/green]")
+    CONSOLE.print(f"[green]Successfully wrote configuration to {output_dir}[/green]")
 
 
 @click.group()
@@ -133,7 +125,7 @@ def generate(config_path: str, output_dir: str) -> None:
         # Generate configuration files
         generate_pgbouncer_config(config, output_dir)
     except Exception as e:
-        console.print(f"[red]Error generating configuration: {str(e)}[/red]")
+        CONSOLE.print(f"[red]Error generating configuration: {str(e)}[/red]")
         sys.exit(1)
 
 
@@ -151,9 +143,9 @@ def validate(config_path: str) -> None:
     try:
         # Parse into Pydantic model
         MainConfig.model_validate(config_data)
-        console.print(f"[green]Configuration file at {config_path} is valid.[/green]")
+        CONSOLE.print(f"[green]Configuration file at {config_path} is valid.[/green]")
     except Exception as e:
-        console.print(f"[red]Configuration validation error: {str(e)}[/red]")
+        CONSOLE.print(f"[red]Configuration validation error: {str(e)}[/red]")
         sys.exit(1)
 
 

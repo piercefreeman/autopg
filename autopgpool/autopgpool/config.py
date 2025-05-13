@@ -2,6 +2,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, model_validator
 
+POOL_MODES = Literal["session", "transaction", "statement"]
+AUTH_TYPES = Literal["cert", "md5", "scram-sha-256", "plain", "trust", "any", "hba", "pam"]
+
 
 class User(BaseModel):
     """
@@ -28,7 +31,7 @@ class Database(BaseModel):
     database: str
     username: str
     password: str
-    pool_mode: Literal["session", "transaction", "statement"] = "transaction"
+    pool_mode: POOL_MODES = "transaction"
 
 
 class PgbouncerConfig(BaseModel):
@@ -36,8 +39,8 @@ class PgbouncerConfig(BaseModel):
     listen_port: int = 6432
     listen_addr: str = "0.0.0.0"
 
-    auth_type: str = "md5"
-    pool_mode: str = "session"
+    auth_type: AUTH_TYPES = "md5"
+    pool_mode: POOL_MODES = "transaction"
 
     max_client_conn: int = 100
     default_pool_size: int = 10

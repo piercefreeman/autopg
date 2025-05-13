@@ -5,5 +5,35 @@ description = "Opinionated package for postgres pools"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "click>=8.2.0",
     "pydantic>=2.11.4",
+    "rich>=14.0.0",
 ]
+
+[project.scripts]
+autopgpool = "autopgpool.cli:cli"
+
+[dependency-groups]
+dev = [
+    "psycopg>=3.2.9",
+    "pyright>=1.1.400",
+    "pytest>=8.3.5",
+    "ruff>=0.11.9",
+]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "B"]
+ignore = ["E501"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"

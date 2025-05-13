@@ -36,3 +36,9 @@ ignore = ["E501"]
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that require external services (deselect with '-m \"not integration\"')",
+]
+addopts = "-m 'not integration'"

@@ -6,6 +6,13 @@ Unlike `autopg`, which is guaranteed to wrap standard Postgres with auto-configu
 
 It's currently a wrapper on top of the battle hardened [pgbouncer](https://www.pgbouncer.org/), but this is an implementation detail that could change in the future.
 
+## Features
+
+- toml configurable with a single deployment file (mounted via a docker volume typically)
+- simple user based access grants to different tables
+- automatic md5 calculation of user passwords
+- environment variable insertion to let your docker container remain the source of truth for configuration variables
+
 ## Basic configuration
 
 You'll minimally need to provide definitions for the remote databases that you want to route into, and the users that you'll use to connect to the pool. We will expand any env variables you include to their current values:

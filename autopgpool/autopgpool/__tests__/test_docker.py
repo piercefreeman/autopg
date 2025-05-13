@@ -4,13 +4,16 @@ import subprocess
 import tempfile
 from pathlib import Path
 from time import sleep, time
-from typing import Generator
+from typing import Generator, TypeVar
 
 import psycopg
 import pytest
-from rich.console import Console
+import tomli_w
 
-console = Console()
+from autopgpool.config import MainConfig, PgbouncerConfig, Pool, User
+from autopgpool.logging import CONSOLE
+
+T = TypeVar("T")
 
 
 @pytest.fixture
@@ -131,7 +134,7 @@ def wait_for_postgres(container_id: str, timeout_seconds: int = 30) -> None:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            console.print("PostgreSQL is ready")
+            CONSOLE.print("PostgreSQL is ready")
             break
         except subprocess.CalledProcessError:
             sleep(1)
@@ -142,47 +145,64 @@ def wait_for_postgres(container_id: str, timeout_seconds: int = 30) -> None:
 
 def create_test_config(temp_workspace: Path, postgres_host: str, postgres_port: int) -> Path:
     """
-    Create a test configuration file for autopgpool.
+    Create a test configuration file for autopgpool using the pydantic models.
 
     :param temp_workspace: Temporary directory containing a copy of the workspace
     :param postgres_host: Hostname of the PostgreSQL container
     :param postgres_port: Port of the PostgreSQL container
     :return: Path to the configuration file
     """
-    config_content = f"""
-# AutoPGPool Test Configuration
+    # Create the user model
+    test_user = User(username="test_user", password="test_password", grants=["test_db"])
 
-# User definitions
-[[users]]
-username = "test_user"
-password = "test_password"
-grants = ["test_db"]
+    # Create the pool model for test_db
+    test_pool = Pool(
+        remote=Pool.RemoteDatabase(
+            host=postgres_host,
+            port=postgres_port,
+            database="test_db",
+            username="test_user",
+            password="test_password",
+        ),
+        pool_mode="transaction",
+    )
 
-# Database definitions
-[pools.test_db]
-pool_mode = "transaction"
+    # Create pgbouncer config
+    pgbouncer_config = PgbouncerConfig(
+        listen_addr="0.0.0.0",
+        listen_port=6432,
+        auth_type="md5",
+        pool_mode="transaction",
+        max_client_conn=100,
+        default_pool_size=20,
+        ignore_startup_parameters=["extra_float_digits"],
+        # Explicitly set these to empty lists instead of None
+        admin_users=[],
+        stats_users=[],
+    )
 
-[pools.test_db.remote]
-host = "{postgres_host}"
-port = {postgres_port}
-database = "test_db"
-username = "test_user"
-password = "test_password"
+    # Create the main config
+    main_config = MainConfig(
+        users=[test_user], pools={"test_db": test_pool}, pgbouncer=pgbouncer_config
+    )
 
-# PGBouncer configuration
-[pgbouncer]
-listen_addr = "0.0.0.0"
-listen_port = 6432
-auth_type = "md5"
-pool_mode = "transaction"
-max_client_conn = 100
-default_pool_size = 20
-ignore_startup_parameters = ["extra_float_digits"]
-"""
+    # Convert to dictionary and then to TOML
+    config_dict = main_config.model_dump(mode="json")
 
+    # Helper function to recursively remove None values from a dict
+    def remove_none_values(d: T) -> T:
+        if not isinstance(d, dict):
+            return d
+        return {k: remove_none_values(v) for k, v in d.items() if v is not None}  # type: ignore
+
+    # Clean the dict before serializing
+    clean_config_dict = remove_none_values(config_dict)
+    config_toml = tomli_w.dumps(clean_config_dict)
+
+    # Write to file
     config_path = temp_workspace / "test_config.toml"
-    with open(config_path, "w") as f:
-        f.write(config_content)
+    with open(config_path, "wb") as f:
+        f.write(config_toml.encode())
 
     return config_path
 
@@ -254,7 +274,7 @@ def wait_for_pgbouncer(container_id: str, timeout_seconds: int = 30) -> None:
                 text=True,
             )
             if "pgbouncer" in result.stdout and "/usr/bin/pgbouncer" in result.stdout:
-                console.print("PgBouncer is running")
+                CONSOLE.print("PgBouncer is running")
                 break
         except subprocess.CalledProcessError:
             pass
@@ -295,7 +315,7 @@ def test_autopgpool_connection(temp_workspace: Path) -> None:
     try:
         # Create Docker network
         network_name = create_docker_network()
-        console.print(f"Created Docker network: {network_name}")
+        CONSOLE.print(f"Created Docker network: {network_name}")
 
         # Start PostgreSQL container
         postgres_container_id, postgres_container_name, _ = start_postgres_container(
@@ -337,15 +357,15 @@ def test_autopgpool_connection(temp_workspace: Path) -> None:
             conn.close()
 
     except Exception as e:
-        console.print(f"Error: {e}")
+        CONSOLE.print(f"Error: {e}")
 
         # Print logs from containers
         if pgbouncer_container_id:
-            console.print("PgBouncer logs:")
+            CONSOLE.print("PgBouncer logs:")
             subprocess.run(["docker", "logs", pgbouncer_container_id], check=True)
 
         if postgres_container_id:
-            console.print("PostgreSQL logs:")
+            CONSOLE.print("PostgreSQL logs:")
             subprocess.run(["docker", "logs", postgres_container_id], check=True)
 
         raise e

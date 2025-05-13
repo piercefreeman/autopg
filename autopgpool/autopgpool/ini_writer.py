@@ -82,6 +82,4 @@ def write_userlist_file(users: list[User], filepath: str, encrypt: AUTH_TYPES) -
             password = user.password
             if encrypt == "md5":
                 password = hashlib.md5(password.encode()).hexdigest()
-            elif encrypt == "scram-sha-256":
-                password = hashlib.scram_sha_256(password.encode()).hexdigest()
             f.write(f'"{user.username}" "{password}"\n')

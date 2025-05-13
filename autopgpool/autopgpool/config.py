@@ -18,19 +18,25 @@ class User(BaseModel):
     # Specified in raw text; we will encode this internally
     password: str
 
+    # Pools that this user has access to
+    grants: list[str]
 
-class Database(BaseModel):
+
+class Pool(BaseModel):
     """
     A synthetically defined database that can be connected to through pgbouncer. These will
     establish an independent connection pool for each of these databases.
 
     """
 
-    host: str
-    port: int
-    database: str
-    username: str
-    password: str
+    class RemoteDatabase(BaseModel):
+        host: str
+        port: int
+        database: str
+        username: str
+        password: str
+
+    remote: RemoteDatabase
     pool_mode: POOL_MODES = "transaction"
 
 
@@ -72,7 +78,7 @@ class MainConfig(BaseModel):
     """
 
     users: list[User]
-    databases: list[Database]
+    pools: dict[str, Pool]
     pgbouncer: PgbouncerConfig
 
     @model_validator(mode="after")
@@ -85,5 +91,17 @@ class MainConfig(BaseModel):
         for user in self.pgbouncer.stats_users or []:
             if user not in valid_users:
                 raise ValueError(f"User {user} is not in the userlist")
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_pool_grants(self):
+        valid_pools = set(self.pools.keys())
+        for user in self.users:
+            for grant in user.grants:
+                if grant not in valid_pools:
+                    raise ValueError(
+                        f"User {user.username} has grant {grant} which is not a valid pool"
+                    )
 
         return self

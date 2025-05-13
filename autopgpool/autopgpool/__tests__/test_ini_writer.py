@@ -12,6 +12,7 @@ from autopgpool.ini_writer import (
     write_userlist_file,
 )
 
+
 @pytest.mark.parametrize(
     "value,expected",
     [
@@ -25,7 +26,7 @@ from autopgpool.ini_writer import (
         ([1, 2, 3], "1, 2, 3"),
         ([True, False], "1, 0"),
         (None, ""),
-        ([None, "test"], ", \"test\""),
+        ([None, "test"], ', "test"'),
         ({"key": "value"}, "{'key': 'value'}"),  # Default str() for unsupported types
     ],
 )
@@ -48,21 +49,21 @@ def test_write_ini_file() -> None:
             "bool_key": False,
         },
     }
-    
+
     section_comments: dict[str, str] = {
         "section1": "This is section 1",
         # No comment for section2
     }
-    
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         filepath = temp_file.name
-        
+
     try:
         write_ini_file(config, filepath, section_comments)
-        
+
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         # Verify the content
         expected_content = textwrap.dedent("""\
             # This is section 1
@@ -88,16 +89,16 @@ def test_write_ini_file_no_comments() -> None:
             "key1": "value1",
         },
     }
-    
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         filepath = temp_file.name
-        
+
     try:
         write_ini_file(config, filepath)  # No section_comments
-        
+
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         expected_content = textwrap.dedent("""\
             [section1]
             key1 = "value1"
@@ -116,16 +117,16 @@ def test_write_userlist_file_plain() -> None:
         User(username="user1", password="pass1"),
         User(username="user2", password="pass2"),
     ]
-    
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         filepath = temp_file.name
-        
+
     try:
         write_userlist_file(users, filepath, "plain")
-        
+
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         expected_content = '"user1" "pass1"\n"user2" "pass2"\n'
         assert content == expected_content
     finally:
@@ -139,23 +140,23 @@ def test_write_userlist_file_md5() -> None:
         User(username="user1", password="pass1"),
         User(username="user2", password="pass2"),
     ]
-    
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         filepath = temp_file.name
-        
+
     try:
         # We're not testing the actual md5 implementation, just that it's used
         write_userlist_file(users, filepath, "md5")
-        
+
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         # TODO: Fill in the actual expected content later
         # Just verify the format is correct - username in quotes followed by something in quotes
         assert '"user1" "' in content
         assert '"user2" "' in content
         assert content.count('"') == 8  # 4 pairs of quotes
-        assert content.count('\n') == 2  # 2 newlines (one per user)
+        assert content.count("\n") == 2  # 2 newlines (one per user)
     finally:
         os.unlink(filepath)
 
@@ -163,16 +164,16 @@ def test_write_userlist_file_md5() -> None:
 def test_write_userlist_file_empty() -> None:
     """Test writing an empty list of users."""
     users: List[User] = []
-    
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         filepath = temp_file.name
-        
+
     try:
         write_userlist_file(users, filepath, "plain")
-        
+
         with open(filepath, "r") as f:
             content = f.read()
-        
+
         assert content == ""
     finally:
         os.unlink(filepath)

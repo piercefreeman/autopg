@@ -6,10 +6,24 @@ Unlike `autopg`, which is guaranteed to wrap standard postgres with auto-configu
 
 It's currently a wrapper on top of the battle hardened [pgbouncer](https://www.pgbouncer.org/), but this is an implementation detail that could change in the future.
 
-## Configuration
+## Basic configuration
+
+You'll minimally need to provide definitions for the remote databases that you want to route into, and the users that you'll use to connect to the pool. We will expand any env variables you include to their current values:
 
 ```toml
+[[users]]
+username = "app_user"
+password = "$APP_CLIENT_PASSWORD"
+
+[pools.main_db.remote]
+host = "127.0.0.1"
+port = "5056"
+database = "main_db"
+username = "main_user"
+password = "$MAIN_DB_PASSWORD"
 ```
+
+For a more complete example config, see config.example.toml.
 
 ### autopgpool vs vanilla pgbouncer
 

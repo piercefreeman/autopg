@@ -1,13 +1,12 @@
 import os
 import sys
-import tomllib
 from pathlib import Path
-from typing import Any
 
 import click
 from rich.markup import escape
 
 from autopgpool.config import MainConfig, User
+from autopgpool.env import load_toml_config
 from autopgpool.ini_writer import (
     write_hba_file,
     write_ini_file,
@@ -17,27 +16,6 @@ from autopgpool.logging import CONSOLE
 
 DEFAULT_CONFIG_PATH = "/etc/autopgpool/autopgpool.toml"
 DEFAULT_OUTPUT_DIR = "/etc/pgbouncer"
-
-
-def load_toml_config(config_path: str) -> dict[str, Any]:
-    """
-    Load a TOML configuration file.
-
-    Args:
-        config_path: Path to the TOML file
-
-    Returns:
-        Dictionary containing the parsed TOML data
-    """
-    try:
-        with open(config_path, "rb") as f:
-            return tomllib.load(f)
-    except FileNotFoundError:
-        CONSOLE.print(f"[red]Error: Config file not found at {config_path}[/red]")
-        sys.exit(1)
-    except tomllib.TOMLDecodeError as e:
-        CONSOLE.print(f"[red]Error parsing TOML file: {str(e)}[/red]")
-        sys.exit(1)
 
 
 def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:

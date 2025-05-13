@@ -20,13 +20,13 @@ from autopgpool.ini_writer import (
         (False, "0"),
         (123, "123"),
         (45.67, "45.67"),
-        ("hello", '"hello"'),
-        ('hello"world', '"hello"world"'),  # String with quotes
-        (["a", "b", "c"], '"a", "b", "c"'),
+        ("hello", "hello"),
+        ('hello"world', 'hello"world'),  # String with quotes
+        (["a", "b", "c"], "a, b, c"),
         ([1, 2, 3], "1, 2, 3"),
         ([True, False], "1, 0"),
         (None, ""),
-        ([None, "test"], ', "test"'),
+        ([None, "test"], ", test"),
         ({"key": "value"}, "{'key': 'value'}"),  # Default str() for unsupported types
     ],
 )
@@ -66,12 +66,12 @@ def test_write_ini_file() -> None:
         expected_content = textwrap.dedent("""\
             # This is section 1
             [section1]
-            key1 = "value1"
+            key1 = value1
             key2 = 123
             key3 = 1
 
             [section2]
-            list_key = "a", "b", "c"
+            list_key = a, b, c
             bool_key = 0
 
             """)
@@ -95,14 +95,12 @@ def test_write_ini_file_no_comments() -> None:
 
         expected_content = textwrap.dedent("""\
             [section1]
-            key1 = "value1"
+            key1 = value1
 
             """)
         assert content == expected_content
 
 
-# Test only the plain auth type since we can't easily mock scram-sha-256
-# and we don't want to test actual hashing in unit tests
 def test_write_userlist_file_plain() -> None:
     """Test writing users to a userlist file with plain auth."""
     users = [
@@ -121,7 +119,6 @@ def test_write_userlist_file_plain() -> None:
         assert content == expected_content
 
 
-# Test with md5 auth type by mocking hashlib.md5
 def test_write_userlist_file_md5() -> None:
     """Test writing users to a userlist file with md5 auth."""
     users = [
@@ -137,12 +134,8 @@ def test_write_userlist_file_md5() -> None:
         with open(filepath, "r") as f:
             content = f.read()
 
-        # TODO: Fill in the actual expected content later
-        # Just verify the format is correct - username in quotes followed by something in quotes
-        assert '"user1" "' in content
-        assert '"user2" "' in content
-        assert content.count('"') == 8  # 4 pairs of quotes
-        assert content.count("\n") == 2  # 2 newlines (one per user)
+        assert '"user1" "md55e4eab96e8b9868ed28cc79c9ceec8b3"' in content
+        assert '"user2" "md553cc9e310bc5e01cb42fd0aeda81e27d"' in content
 
 
 def test_write_userlist_file_empty() -> None:

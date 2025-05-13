@@ -45,9 +45,9 @@ def test_generate_pgbouncer_config(temp_dir: Path) -> None:
     # Verify key configuration elements are present
     assert "[pgbouncer]" in pgbouncer_ini
     assert "listen_port = 6432" in pgbouncer_ini
-    assert 'auth_type = "hba"' in pgbouncer_ini  # overridden
+    assert "auth_type = hba" in pgbouncer_ini  # overridden
     assert "auth_file = " in pgbouncer_ini
-    assert 'application_name = "pgbouncer"' in pgbouncer_ini
+    assert "application_name = pgbouncer" in pgbouncer_ini
     assert "[databases]" in pgbouncer_ini
     assert "testdb = " in pgbouncer_ini
     assert "host=localhost" in pgbouncer_ini
@@ -66,13 +66,9 @@ def test_generate_pgbouncer_config(temp_dir: Path) -> None:
     # Check HBA entries for testuser
     assert "local\ttestdb\ttestuser\t\tmd5" in hba_content
     assert "host\ttestdb\ttestuser\t0.0.0.0/0\tmd5" in hba_content
-    assert "host\ttestdb\ttestuser\t::0/0\tmd5" in hba_content
-    assert "host\tall\ttestuser\t!0.0.0.0/0\t!md5" in hba_content
-    assert "host\tall\ttestuser\t!::0/0\t!md5" in hba_content
+    assert "host\ttestdb\ttestuser\t::/0\tmd5" in hba_content
 
     # Check HBA entries for admin
     assert "local\ttestdb\tadmin\t\tmd5" in hba_content
     assert "host\ttestdb\tadmin\t0.0.0.0/0\tmd5" in hba_content
-    assert "host\ttestdb\tadmin\t::0/0\tmd5" in hba_content
-    assert "host\tall\tadmin\t!0.0.0.0/0\t!md5" in hba_content
-    assert "host\tall\tadmin\t!::0/0\t!md5" in hba_content
+    assert "host\ttestdb\tadmin\t::/0\tmd5" in hba_content

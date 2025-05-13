@@ -24,7 +24,7 @@ def format_ini_value(value: Any) -> str:
         return f'"{value}"'
     elif isinstance(value, list):
         # For lists, join with commas
-        return ", ".join(format_ini_value(item) for item in value)
+        return ", ".join(format_ini_value(item) for item in value)  # type: ignore
     elif value is None:
         return ""
     else:
@@ -76,10 +76,42 @@ def write_userlist_file(users: list[User], filepath: str, encrypt: AUTH_TYPES) -
     Args:
         users: List of user dictionaries with username and password
         filepath: Path to write the userlist file to
+        encrypt: Authentication type to use for password encryption
     """
     with open(filepath, "w") as f:
         for user in users:
             password = user.password
             if encrypt == "md5":
-                password = hashlib.md5(password.encode()).hexdigest()
+                password = f"md5{hashlib.md5((password + user.username).encode()).hexdigest()}"
+            elif encrypt == "scram-sha-256":
+                raise NotImplementedError("SCRAM-SHA-256 is not yet implemented")
             f.write(f'"{user.username}" "{password}"\n')
+
+
+@dataclass
+class UserWithGrants(User):
+    grants: list[str]
+
+
+def write_hba_file(users: list["UserWithGrants"], filepath: str) -> None:
+    """
+    Write a pgbouncer HBA (host-based authentication) file.
+
+    Args:
+        users: List of users with their granted pools
+        filepath: Path to write the HBA file to
+    """
+    with open(filepath, "w") as f:
+        f.write("# TYPE\tDATABASE\tUSER\tADDRESS\tMETHOD\n")
+
+        # For each user, create entries for their granted pools
+        for user in users:
+            for pool in user.grants:
+                # Allow local connections
+                f.write(f"local\t{pool}\t{user.username}\t\tmd5\n")
+                # Allow host connections from anywhere
+                f.write(f"host\t{pool}\t{user.username}\t0.0.0.0/0\tmd5\n")
+                f.write(f"host\t{pool}\t{user.username}\t::0/0\tmd5\n")
+                # Block the user from everything else not listed above
+                f.write(f"host\tall\t{user.username}\t!0.0.0.0/0\t!md5\n")
+                f.write(f"host\tall\t{user.username}\t!::0/0\t!md5\n")

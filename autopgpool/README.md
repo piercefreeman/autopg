@@ -1,8 +1,8 @@
 # autopgpool
 
-`autopgpool` is a postgres pooler with opinionated default configurations.
+`autopgpool` is a Postgres pooler with opinionated default configurations.
 
-Unlike `autopg`, which is guaranteed to wrap standard postgres with auto-configuration useful on any device, `autopgpool` is more geared to users that are self hosting postgres and want a lightweight pooling layer out of the box.
+Unlike `autopg`, which is guaranteed to wrap standard Postgres with auto-configuration useful on any device, `autopgpool` is more geared to users that are self hosting postgres and want a lightweight pooling layer out of the box.
 
 It's currently a wrapper on top of the battle hardened [pgbouncer](https://www.pgbouncer.org/), but this is an implementation detail that could change in the future.
 

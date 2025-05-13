@@ -1,4 +1,6 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Generator
 
 import pytest
 
@@ -19,3 +21,10 @@ def project_root() -> Path:
         current_dir = current_dir.parent
 
     raise FileNotFoundError("Could not find project root (pyproject.toml)")
+
+
+@pytest.fixture
+def temp_dir() -> Generator[Path, None, None]:
+    """Fixture that provides a temporary directory as a Path object."""
+    with TemporaryDirectory() as temp_dir:
+        yield Path(temp_dir)

@@ -7,8 +7,13 @@ from typing import Any
 import click
 from rich.console import Console
 
-from autopgpool.config import MainConfig, User
-from autopgpool.ini_writer import write_ini_file, write_userlist_file
+from autopgpool.config import MainConfig
+from autopgpool.ini_writer import (
+    UserWithGrants,
+    write_hba_file,
+    write_ini_file,
+    write_userlist_file,
+)
 
 console = Console()
 
@@ -48,31 +53,53 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
     output_path = Path(output_dir)
     os.makedirs(output_path, exist_ok=True)
 
+    # Create users with grants for HBA configuration
+    users_with_grants = [
+        UserWithGrants(username=user.username, password=user.password, grants=user.grants)
+        for user in config.users
+    ]
+
+    # Write userlist.txt file
+    write_userlist_file(
+        [
+            UserWithGrants(username=u.username, password=u.password, grants=u.grants)
+            for u in config.users
+        ],
+        str(output_path / "userlist.txt"),
+        encrypt=config.pgbouncer.auth_type,
+    )
+
+    # Even when the user hasn't requested hba auth, we want to write the HBA file
+    # to provide our access grants
+    write_hba_file(
+        users_with_grants,
+        str(output_path / "pgbouncer_hba.conf"),
+    )
     # Create pgbouncer.ini
     pgbouncer_config = {
         "pgbouncer": {
             **config.pgbouncer.model_dump(exclude={"passthrough_kwargs"}),
             **config.pgbouncer.passthrough_kwargs,
+            **{
+                "auth_type": "hba",
+                "auth_file": str(output_path / "pgbouncer_hba.conf"),
+            },
         },
         "databases": {
             # Format: dbname = connection_string
-            db.database: (
-                f"host={db.host} port={db.port} dbname={db.database} "
-                f"user={db.username} password={db.password} pool_mode={db.pool_mode}"
+            pool_name: (
+                f"host={pool.remote.host} port={pool.remote.port} dbname={pool.remote.database} "
+                f"user={pool.remote.username} password={pool.remote.password} pool_mode={pool.pool_mode}"
             )
-            for db in config.databases
+            for pool_name, pool in config.pools.items()
         },
     }
 
     # Write the pgbouncer.ini file
     write_ini_file(
         pgbouncer_config,
-        output_path / "pgbouncer.ini",
+        str(output_path / "pgbouncer.ini"),
     )
-
-    # Write userlist.txt file
-    users = [User(username=user.username, password=user.password) for user in config.users]
-    write_userlist_file(users, output_path / "userlist.txt", encrypt=config.pgbouncer.auth_type)
 
     console.print(f"[green]Successfully wrote configuration to {output_dir}[/green]")
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+from rich.markup import escape
 
 from autopgpool.config import MainConfig, User
 from autopgpool.ini_writer import (
@@ -63,11 +64,13 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
     # Write userlist.txt file
     write_userlist_file(users, userlist_path, encrypt=config.pgbouncer.auth_type)
     CONSOLE.print(f"Wrote userlist file to [bold]{userlist_path}[/bold]")
+    CONSOLE.print(f"Userlist file contents:\n###\n{escape(userlist_path.read_text())}\n###\n")
 
     # Even when the user hasn't requested hba auth, we want to write the HBA file
     # to provide our access grants
     write_hba_file(users, hba_path)
     CONSOLE.print(f"Wrote HBA file to [bold]{hba_path}[/bold]")
+    CONSOLE.print(f"HBA file contents:\n###\n{escape(hba_path.read_text())}\n###\n")
 
     # Create pgbouncer.ini
     pgbouncer_config = {
@@ -76,7 +79,8 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
             **config.pgbouncer.passthrough_kwargs,
             **{
                 "auth_type": "hba",
-                "auth_file": hba_path,
+                "auth_file": userlist_path,
+                "auth_hba_file": hba_path,
             },
         },
         "databases": {
@@ -92,6 +96,7 @@ def generate_pgbouncer_config(config: MainConfig, output_dir: str) -> None:
     # Write the pgbouncer.ini file
     write_ini_file(pgbouncer_config, ini_path)
     CONSOLE.print(f"Wrote pgbouncer.ini file to [bold]{ini_path}[/bold]")
+    CONSOLE.print(f"PGBouncer.ini file contents:\n###\n{escape(ini_path.read_text())}\n###\n")
 
     CONSOLE.print(f"[green]Successfully wrote configuration to {output_dir}[/green]")
 

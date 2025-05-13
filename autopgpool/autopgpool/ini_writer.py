@@ -99,9 +99,9 @@ def write_hba_file(users: list[User], filepath: Path) -> None:
             for pool in user.grants:
                 # Allow local connections
                 f.write(f"local\t{pool}\t{user.username}\t\tmd5\n")
-                # Allow host connections from anywhere
+                # Allow host connections from anywhere (IPv4 and IPv6)
                 f.write(f"host\t{pool}\t{user.username}\t0.0.0.0/0\tmd5\n")
-                f.write(f"host\t{pool}\t{user.username}\t::0/0\tmd5\n")
-                # Block the user from everything else not listed above
-                f.write(f"host\tall\t{user.username}\t!0.0.0.0/0\t!md5\n")
-                f.write(f"host\tall\t{user.username}\t!::0/0\t!md5\n")
+                f.write(f"host\t{pool}\t{user.username}\t::/0\tmd5\n")
+        # Block all other user/grants from everything else not listed above
+        f.write("host\tall\tall\t0.0.0.0/0\treject\n")
+        f.write("host\tall\tall\t::/0\treject\n")

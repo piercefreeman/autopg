@@ -21,6 +21,7 @@ You'll minimally need to provide definitions for the remote databases that you w
 [[users]]
 username = "app_user"
 password = "$APP_CLIENT_PASSWORD"
+grants = ["main_db"]
 
 [pools.main_db.remote]
 host = "127.0.0.1"
@@ -30,7 +31,23 @@ username = "main_user"
 password = "$MAIN_DB_PASSWORD"
 ```
 
-For a more complete example config, see config.example.toml.
+For a more complete example config, see config.example.toml. To reference this in docker-compose, do something like the following:
+
+```bash
+version: '3'
+
+services:
+  pgpool:
+    image: ghcr.io/piercefreeman/autopg-pool:latest
+    ports:
+      - "6432:6432"
+    environment:
+      - APP_CLIENT_PASSWORD=myapppassword
+      - MAIN_DB_PASSWORD=mymaindbpassword
+    volumes:
+      - ./config.toml:/etc/autopgpool/autopgpool.toml
+    restart: unless-stopped
+```
 
 ### autopgpool vs vanilla pgbouncer
 

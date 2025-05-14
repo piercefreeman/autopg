@@ -79,7 +79,7 @@ class MainConfig(BaseModel):
 
     users: list[User]
     pools: dict[str, Pool]
-    pgbouncer: PgbouncerConfig
+    pgbouncer: PgbouncerConfig = PgbouncerConfig()
 
     @model_validator(mode="after")
     def validate_pgbouncer_users(self):

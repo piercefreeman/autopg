@@ -14,6 +14,7 @@ dependencies = [
     "uvicorn>=0.23.0",
     "psycopg>=3.2.5",
     "pygments>=2.17.0",
+    "sqlparse>=0.4.0",
 ]
 
 [project.scripts]

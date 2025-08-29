@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # AutoPG IS the PostgreSQL instance with optimizations
+  autopg:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: autopg-postgres
+    environment:
+      # PostgreSQL configuration
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: benchmark
+      # AutoPG optimization settings
+      AUTOPG_DB_TYPE: web
+      AUTOPG_TOTAL_MEMORY_MB: 8192
+      AUTOPG_CPU_COUNT: 4
+      AUTOPG_NUM_CONNECTIONS: 200
+      AUTOPG_PRIMARY_DISK_TYPE: SSD
+      # Enable diagnostics webapp
+      AUTOPG_ENABLE_WEBAPP: "true"
+      AUTOPG_WEBAPP_HOST: 0.0.0.0
+      AUTOPG_WEBAPP_PORT: 8000
+      # Database connection for webapp
+      AUTOPG_DB_HOST: localhost
+      AUTOPG_DB_PORT: 5432
+      AUTOPG_DB_NAME: benchmark
+      AUTOPG_DB_USER: postgres
+      AUTOPG_DB_PASSWORD: postgres
+    ports:
+      - "5432:5432"  # PostgreSQL port
+      - "8000:8000"  # Diagnostics webapp port
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - autopg-network
+
+  benchmark:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile.benchmark
+    container_name: autopg-benchmark
+    depends_on:
+      autopg:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: autopg  # Connect to the autopg container
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ..:/app
+      - ./results:/results
+    working_dir: /app
+    command: tail -f /dev/null  # Keep container running for interactive use
+    networks:
+      - autopg-network
+
+volumes:
+  postgres_data:
+
+networks:
+  autopg-network:
+    driver: bridge

@@ -139,6 +139,13 @@ def cli() -> None:
 
 
 @cli.command()
+def webapp() -> None:
+    """Start the AutoPG diagnostics web application."""
+    from autopg.webapp import start_webapp
+    start_webapp()
+
+
+@cli.command()
 @click.option(
     "--pg-path", default="/etc/postgresql", help="Path to PostgreSQL configuration directory"
 )

@@ -10,6 +10,9 @@ dependencies = [
     "pydantic>=2.10.6",
     "pydantic-settings>=2.7.1",
     "rich>=13.9.4",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "psycopg>=3.2.5",
 ]
 
 [project.scripts]
@@ -44,3 +47,8 @@ markers = [
     "integration: marks tests that require external services (deselect with '-m \"not integration\"')",
 ]
 addopts = "-m 'not integration'"
+
+[tool.uv.workspace]
+members = [
+    "benchmarks",
+]

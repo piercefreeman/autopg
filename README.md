@@ -33,6 +33,7 @@ We use reasonable system defaults when you launch without any env variables. We 
 | `AUTOPG_CPU_COUNT` | `None` | Integer | Number of CPUs on the host |
 | `AUTOPG_NUM_CONNECTIONS` | `100` | Integer | Max number of concurrent connections to the db |
 | `AUTOPG_PRIMARY_DISK_TYPE` | `None` | `SSD`, `HDD`, `SAN` | Type of the primary disk |
+| `AUTOPG_ENABLE_PG_STAT_STATEMENTS` | `true` | `true`, `false` | Enable pg_stat_statements extension for query statistics |
 
 2. Existing `postgresql.conf` file
 

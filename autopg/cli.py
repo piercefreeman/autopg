@@ -80,6 +80,7 @@ class EnvOverrides(BaseSettings):
     CPU_COUNT: int | None = None
     NUM_CONNECTIONS: int | None = 100
     PRIMARY_DISK_TYPE: DiskType | None = None
+    ENABLE_PG_STAT_STATEMENTS: bool = True
 
     model_config = {"env_file": ".env", "env_prefix": "AUTOPG_"}
 
@@ -128,6 +129,9 @@ def display_detected_params(config: Configuration) -> None:
     table.add_row("CPU Count", str(config.cpu_num))
     table.add_row("Connection Count", str(config.connection_num))
     table.add_row("Hard Drive Type", config.hd_type)
+    table.add_row(
+        "pg_stat_statements", "Enabled" if config.enable_pg_stat_statements else "Disabled"
+    )
 
     console.print(table)
     console.print()
@@ -176,6 +180,7 @@ def build_config(pg_path: str) -> None:
         cpu_num=env.CPU_COUNT or cpu_info.count,
         connection_num=env.NUM_CONNECTIONS,
         hd_type=env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
+        enable_pg_stat_statements=env.ENABLE_PG_STAT_STATEMENTS,
     )
 
     # Display detected parameters
@@ -205,6 +210,9 @@ def build_config(pg_path: str) -> None:
 
     # Add WAL level settings
     new_config = {**new_config, **pg_config.get_wal_level()}
+
+    # Add pg_stat_statements settings
+    new_config = {**new_config, **pg_config.get_pg_stat_statements_config()}
 
     # Add WAL buffers if available
     wal_buffers = pg_config.get_wal_buffers()

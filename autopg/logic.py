@@ -55,6 +55,7 @@ class Configuration(BaseModel):
     cpu_num: int | None = None
     connection_num: int | None = None
     hd_type: str = HARD_DRIVE_SSD
+    enable_pg_stat_statements: bool = True
 
 
 class PostgresConfig:
@@ -298,3 +299,17 @@ class PostgresConfig:
                 "max_wal_senders": "0",
             }
         return {}
+
+    def get_pg_stat_statements_config(self) -> dict[str, str | int]:
+        """
+        Get pg_stat_statements extension configuration.
+        Returns configuration for shared_preload_libraries and pg_stat_statements settings.
+        """
+        if not self.state.enable_pg_stat_statements:
+            return {}
+
+        return {
+            "shared_preload_libraries": "pg_stat_statements",
+            "pg_stat_statements.track": "all",
+            "pg_stat_statements.max": 10000,
+        }

@@ -25,6 +25,7 @@ from autopg.postgres import (
     get_postgres_version,
     read_postgresql_conf,
     write_postgresql_conf,
+    write_sql_init_file,
 )
 from autopg.system_info import DiskType, get_cpu_info, get_disk_type, get_memory_info
 
@@ -253,16 +254,13 @@ def build_config(pg_path: str) -> None:
         # Write SQL initialization file if pg_stat_statements is enabled
         init_sql = pg_config.get_pg_stat_statements_sql()
         if init_sql.strip():
-            init_sql_path = Path("/docker-entrypoint-initdb.d") / "init_extensions.sql"
-            with open(init_sql_path, "w") as f:
-                f.write(init_sql)
-            console.print(
-                f"[green]Successfully wrote SQL initialization file: {init_sql_path}[/green]"
-            )
-            console.print(
-                "[yellow]Run this SQL file in your database to enable extensions:[/yellow]"
-            )
-            console.print(f"[yellow]  psql -d your_database -f {init_sql_path}[/yellow]")
+            success, _ = write_sql_init_file(init_sql, "init_extensions.sql")
+            if not success:
+                console.print(
+                    "\n[yellow]Failed to write SQL initialization file. Run this SQL manually:[/yellow]"
+                )
+                console.print(f"[yellow]{init_sql}[/yellow]")
+
     except Exception as e:
         console.print(f"\n[red]Error writing configuration: {str(e)}[/red]")
         sys.exit(1)

@@ -9,9 +9,4 @@ from .database import DatabaseConnection
 from .insertion import InsertionBenchmark
 from .seqscan import SequentialScanBenchmark
 
-__all__ = [
-    'cli',
-    'DatabaseConnection', 
-    'InsertionBenchmark',
-    'SequentialScanBenchmark'
-]
+__all__ = ["cli", "DatabaseConnection", "InsertionBenchmark", "SequentialScanBenchmark"]

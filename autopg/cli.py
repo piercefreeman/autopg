@@ -2,6 +2,7 @@ import platform
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Dict
 
 import click
@@ -142,6 +143,7 @@ def cli() -> None:
 def webapp() -> None:
     """Start the AutoPG diagnostics web application."""
     from autopg.webapp import start_webapp
+
     start_webapp()
 
 
@@ -242,3 +244,50 @@ def build_config(pg_path: str) -> None:
     except Exception as e:
         console.print(f"\n[red]Error writing configuration: {str(e)}[/red]")
         sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--output-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="Output directory for CSS files (defaults to autopg/static/)",
+)
+@click.option(
+    "--style",
+    type=str,
+    default="default",
+    help="Pygments style to use (default, github, monokai, etc.)",
+)
+def generate_css(output_dir: Path | None, style: str) -> None:
+    """Generate Pygments CSS for SQL syntax highlighting."""
+    try:
+        from pygments.formatters import HtmlFormatter
+    except ImportError:
+        console.print(
+            "[red]Error: pygments is not installed. Install it with: pip install pygments[/red]"
+        )
+        sys.exit(1)
+
+    if output_dir is None:
+        # Default to the static directory relative to this file
+        output_dir = Path(__file__).parent / "static"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    css_file = output_dir / "pygments.css"
+
+    console.print(f"Generating Pygments CSS with style '{style}'...")
+
+    # Create HTML formatter with the specified style
+    formatter = HtmlFormatter(style=style, cssclass="highlight", noclasses=False)
+
+    # Generate CSS
+    css_content = formatter.get_style_defs(".highlight")
+
+    # Write CSS file
+    with open(css_file, "w", encoding="utf-8") as f:
+        f.write(css_content)
+
+    console.print(f"[green]✓ Generated Pygments CSS: {css_file}[/green]")
+    console.print(f"[blue]Style used: {style}[/blue]")
+    console.print("[yellow]Don't forget to include this CSS file in your HTML![/yellow]")

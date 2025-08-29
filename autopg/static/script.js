@@ -184,7 +184,7 @@ function displayProblemQueries(queries) {
                         <div class="query-stat-label">Max Time</div>
                     </div>
                 </div>
-                <div class="highlight-container">
+                <div class="highlight">
                     ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
                 </div>
             </div>
@@ -273,7 +273,7 @@ function displayTableAnalysis(analysis) {
                         <span class="index-name">${escapeHtml(idx.index_name)}</span>
                         <span class="index-size">${idx.index_size}</span>
                     </div>
-                    <div class="highlight-container">
+                    <div class="highlight">
                         ${idx.index_def_html || `<code>${escapeHtml(idx.index_def)}</code>`}
                     </div>
                 </div>
@@ -323,7 +323,7 @@ function displayTableAnalysis(analysis) {
                             <div class="query-stat-label">Total Time</div>
                         </div>
                     </div>
-                    <div class="highlight-container">
+                    <div class="highlight">
                         ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
                     </div>
                 </div>

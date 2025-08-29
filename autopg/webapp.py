@@ -20,6 +20,7 @@ from autopg.diagnostics import (
     ActiveQuery,
     DiagnosticController,
     DiagnosticSummary,
+    TableColumn,
     TableIndexInfo,
     TableScanStats,
 )
@@ -145,6 +146,19 @@ class EnhancedQueryStats(BaseModel):
     max_time_ms: float
 
 
+class EnhancedExplainResult(BaseModel):
+    """Enhanced explain result with HTML formatting."""
+
+    original_query: str
+    parameterized_query: str
+    parameterized_query_html: str  # HTML-formatted parameterized query
+    explain_plan: dict
+    execution_time_ms: float
+    total_cost: float
+    rows_estimated: int
+    rows_actual: int
+
+
 class EnhancedTableDiagnostics(BaseModel):
     """Enhanced table diagnostics with HTML formatting."""
 
@@ -153,6 +167,8 @@ class EnhancedTableDiagnostics(BaseModel):
     indexes: List[EnhancedTableIndexInfo]
     recommendations: List[str]
     problem_queries: List[EnhancedQueryStats]
+    columns: List[TableColumn] = []
+    explain_results: List[EnhancedExplainResult] = []
 
 
 # Configure logging
@@ -331,12 +347,28 @@ async def analyze_table(table_name: str):
         for query in diagnostics.problem_queries
     ]
 
+    enhanced_explain_results = [
+        EnhancedExplainResult(
+            original_query=result.original_query,
+            parameterized_query=result.parameterized_query,
+            parameterized_query_html=highlight_sql(result.parameterized_query),
+            explain_plan=result.explain_plan,
+            execution_time_ms=result.execution_time_ms,
+            total_cost=result.total_cost,
+            rows_estimated=result.rows_estimated,
+            rows_actual=result.rows_actual,
+        )
+        for result in diagnostics.explain_results
+    ]
+
     return EnhancedTableDiagnostics(
         table_name=diagnostics.table_name,
         scan_stats=diagnostics.scan_stats,
         indexes=enhanced_indexes,
         recommendations=diagnostics.recommendations,
         problem_queries=enhanced_queries,
+        columns=diagnostics.columns,
+        explain_results=enhanced_explain_results,
     )
 
 

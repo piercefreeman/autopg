@@ -1,10 +1,14 @@
 """PostgreSQL diagnostics models and controller for performance analysis."""
 
+import random
+import re
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
+import sqlparse
 from pydantic import BaseModel, Field
+from sqlparse import tokens as T
 
 
 class IndexUsageLevel(StrEnum):
@@ -107,6 +111,30 @@ class TableIndexInfo(BaseModel):
         )
 
 
+class TableColumn(BaseModel):
+    """Information about a table column."""
+
+    column_name: str
+    data_type: str
+    is_nullable: bool
+    column_default: Optional[str] = None
+    character_maximum_length: Optional[int] = None
+    numeric_precision: Optional[int] = None
+    numeric_scale: Optional[int] = None
+
+
+class ExplainResult(BaseModel):
+    """Results from EXPLAIN ANALYZE."""
+
+    original_query: str
+    parameterized_query: str
+    explain_plan: dict
+    execution_time_ms: float
+    total_cost: float
+    rows_estimated: int
+    rows_actual: int
+
+
 class TableDiagnostics(BaseModel):
     """Complete diagnostics for a table."""
 
@@ -115,6 +143,8 @@ class TableDiagnostics(BaseModel):
     indexes: List[TableIndexInfo]
     problem_queries: List[QueryStats]
     recommendations: List[str]
+    columns: List[TableColumn] = []
+    explain_results: List[ExplainResult] = []
 
 
 class ActiveQuery(BaseModel):
@@ -328,6 +358,321 @@ class DiagnosticController:
                 results.append(ActiveQuery.from_db_row(row_dict))
         return results
 
+    def get_table_columns(self, table_name: str) -> List[TableColumn]:
+        """Get column information for a specific table."""
+        # Handle schema-qualified table names
+        if "." in table_name:
+            schema_name, table_name_only = table_name.split(".", 1)
+            where_clause = "WHERE table_schema = %s AND table_name = %s"
+            params = (schema_name, table_name_only)
+        else:
+            where_clause = "WHERE table_name = %s AND table_schema = 'public'"
+            params = (table_name,)
+
+        query = f"""
+        SELECT 
+            column_name,
+            data_type,
+            is_nullable::boolean,
+            column_default,
+            character_maximum_length,
+            numeric_precision,
+            numeric_scale
+        FROM information_schema.columns
+        {where_clause}
+        ORDER BY ordinal_position
+        """
+
+        conn = self._get_connection()
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            results = []
+            for row in cur.fetchall():
+                row_dict = dict(zip(columns, row, strict=False))
+                results.append(
+                    TableColumn(
+                        column_name=row_dict["column_name"],
+                        data_type=row_dict["data_type"],
+                        is_nullable=row_dict["is_nullable"],
+                        column_default=row_dict.get("column_default"),
+                        character_maximum_length=row_dict.get("character_maximum_length"),
+                        numeric_precision=row_dict.get("numeric_precision"),
+                        numeric_scale=row_dict.get("numeric_scale"),
+                    )
+                )
+        return results
+
+    def _generate_realistic_value(self, column: TableColumn) -> str:
+        """Generate a realistic value for a column based on its type."""
+        data_type = column.data_type.lower()
+
+        if data_type in ["integer", "int4", "int", "serial"]:
+            return str(random.randint(1, 100000))
+        elif data_type in ["bigint", "int8", "bigserial"]:
+            return str(random.randint(1, 1000000))
+        elif data_type in ["smallint", "int2"]:
+            return str(random.randint(1, 1000))
+        elif data_type in ["numeric", "decimal"]:
+            if column.numeric_scale and column.numeric_scale > 0:
+                return str(round(random.uniform(1.0, 1000.0), column.numeric_scale))
+            return str(random.randint(1, 10000))
+        elif data_type in ["real", "float4", "double precision", "float8"]:
+            return str(round(random.uniform(1.0, 1000.0), 2))
+        elif data_type in ["character varying", "varchar", "text", "char", "character"]:
+            # Generate realistic string values
+            sample_strings = [
+                "'example_value'",
+                "'test_data'",
+                "'sample_text'",
+                "'user_input'",
+                "'demo_content'",
+                "'placeholder'",
+            ]
+            return random.choice(sample_strings)
+        elif data_type == "boolean":
+            return random.choice(["true", "false"])
+        elif data_type in ["date"]:
+            return "'2024-01-15'"
+        elif data_type in ["timestamp", "timestamptz", "timestamp with time zone"]:
+            return "'2024-01-15 10:30:00'"
+        elif data_type in ["time", "timetz"]:
+            return "'10:30:00'"
+        elif data_type == "uuid":
+            return "'550e8400-e29b-41d4-a716-446655440000'"
+        elif data_type == "json" or data_type == "jsonb":
+            return '\'{"key": "value"}\''
+        elif data_type in ["inet", "cidr"]:
+            return "'192.168.1.1'"
+        elif data_type == "macaddr":
+            return "'08:00:2b:01:02:03'"
+        else:
+            # Fallback for unknown types
+            return "'unknown_type'"
+
+    def _analyze_sql_context(self, query_text: str, columns: List[TableColumn]) -> Dict[str, str]:
+        """Analyze SQL query to determine expected parameter types based on context."""
+        try:
+            parsed = sqlparse.parse(query_text)[0]
+            column_map = {col.column_name.lower(): col for col in columns}
+            parameter_types = {}
+
+            # Extract all tokens as a flat list for easier analysis
+            all_tokens = list(parsed.flatten())
+
+            for i, token in enumerate(all_tokens):
+                token_str = str(token).strip()
+
+                # Look for parameter placeholders
+                if (
+                    token_str in ("$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9")
+                    or token_str == "?"
+                ):
+                    # Look backwards for context
+                    context_column = None
+                    context_operator = None
+
+                    # Scan backwards to find column and operator
+                    for j in range(i - 1, max(0, i - 10), -1):
+                        prev_token = all_tokens[j]
+                        prev_str = str(prev_token).strip().lower()
+
+                        # Found an operator
+                        if prev_token.ttype in (T.Operator, T.Operator.Comparison) or prev_str in (
+                            "like",
+                            "ilike",
+                            "=",
+                            "!=",
+                            "<>",
+                            "<",
+                            ">",
+                            "<=",
+                            ">=",
+                        ):
+                            context_operator = prev_str
+
+                        # Found a column name
+                        elif prev_token.ttype is T.Name and prev_str in column_map:
+                            context_column = column_map[prev_str]
+                            break
+
+                        # Handle special cases like "column_name::text"
+                        elif "::" in prev_str:
+                            column_part = prev_str.split("::")[0]
+                            if column_part in column_map:
+                                context_column = column_map[column_part]
+                                break
+
+                    # Look ahead for INTERVAL context
+                    interval_context = False
+                    if i + 1 < len(all_tokens):
+                        next_token = str(all_tokens[i + 1]).strip().upper()
+                        if "INTERVAL" in next_token:
+                            interval_context = True
+
+                    # Generate appropriate value based on context
+                    if interval_context:
+                        parameter_types[token_str] = "'1 day'"
+                    elif context_column and context_operator:
+                        parameter_types[token_str] = self._get_appropriate_value_for_context(
+                            context_column, context_operator
+                        )
+                    elif context_column:
+                        parameter_types[token_str] = self._generate_realistic_value(context_column)
+                    else:
+                        # Try to infer from surrounding context
+                        parameter_types[token_str] = self._infer_parameter_type_from_context(
+                            all_tokens, i
+                        )
+
+            return parameter_types
+
+        except Exception as e:
+            print(f"Error parsing SQL: {e}")
+            return {}
+
+    def _infer_parameter_type_from_context(self, tokens: List, param_index: int) -> str:
+        """Infer parameter type from surrounding SQL context."""
+        # Look at surrounding tokens for clues
+        context_window = 5
+        start_idx = max(0, param_index - context_window)
+        end_idx = min(len(tokens), param_index + context_window)
+
+        context_tokens = [str(t).lower() for t in tokens[start_idx:end_idx]]
+        context_str = " ".join(context_tokens)
+
+        # Check for specific patterns
+        if "like" in context_str or "ilike" in context_str:
+            return "'%example%'"
+        elif "interval" in context_str:
+            return "'1 day'"
+        elif any(op in context_str for op in ["=", "!=", "<>", "<", ">", "<=", ">="]):
+            return "'sample_value'"
+        elif "in" in context_str and "(" in context_str:
+            return "'value1'"
+        else:
+            return "'default_value'"
+
+    def _get_appropriate_value_for_context(self, column: TableColumn, operator: str) -> str:
+        """Generate appropriate value based on column type and operator context."""
+        data_type = column.data_type.lower()
+
+        # Handle LIKE operators specially
+        if operator.upper() in ("LIKE", "ILIKE"):
+            if data_type in ["character varying", "varchar", "text", "char", "character"]:
+                return "'%example%'"
+            else:
+                return "'%sample%'"
+
+        # Handle INTERVAL specially
+        if "interval" in operator.lower():
+            return "'1 day'"
+
+        # Handle comparison operators
+        if operator in ("=", "!=", "<>", "<", ">", "<=", ">="):
+            return self._generate_realistic_value(column)
+
+        # Default fallback
+        return self._generate_realistic_value(column)
+
+    def _substitute_query_parameters(self, query_text: str, columns: List[TableColumn]) -> str:
+        """Replace query parameters with realistic values based on SQL context analysis."""
+        # First, analyze the SQL to understand parameter contexts
+        parameter_types = self._analyze_sql_context(query_text, columns)
+
+        # If context analysis failed, fall back to simple substitution
+        if not parameter_types:
+            return self._simple_parameter_substitution(query_text, columns)
+
+        # Apply context-aware substitutions
+        substituted = query_text
+        for param, value in parameter_types.items():
+            substituted = substituted.replace(param, value)
+
+        return substituted
+
+    def _simple_parameter_substitution(self, query_text: str, columns: List[TableColumn]) -> str:
+        """Fallback simple parameter substitution."""
+        # Replace $1, $2, etc. with realistic values (cycling through columns)
+        param_pattern = r"\$(\d+)"
+
+        def replace_param(match):
+            param_num = int(match.group(1))
+            if param_num <= len(columns):
+                return self._generate_realistic_value(columns[param_num - 1])
+            return "'param_value'"
+
+        substituted = re.sub(param_pattern, replace_param, query_text)
+
+        # Replace ? placeholders with realistic values
+        question_count = substituted.count("?")
+        for i in range(question_count):
+            if i < len(columns):
+                substituted = substituted.replace(
+                    "?", self._generate_realistic_value(columns[i]), 1
+                )
+            else:
+                substituted = substituted.replace("?", "'placeholder'", 1)
+
+        return substituted
+
+    def _execute_explain_analyze(
+        self, query_text: str, columns: List[TableColumn]
+    ) -> Optional[ExplainResult]:
+        """Execute EXPLAIN ANALYZE on a query with substituted parameters."""
+        # Use a separate connection to avoid transaction issues
+        import psycopg
+
+        explain_conn = None
+
+        try:
+            # Substitute parameters
+            parameterized_query = self._substitute_query_parameters(query_text, columns)
+
+            # Safety check - only allow SELECT queries
+            if not parameterized_query.strip().upper().startswith("SELECT"):
+                return None
+
+            # Execute EXPLAIN ANALYZE with a fresh connection
+            explain_query = (
+                f"EXPLAIN (ANALYZE true, BUFFERS true, FORMAT JSON) {parameterized_query}"
+            )
+
+            explain_conn = psycopg.connect(**self.connection_params)
+            with explain_conn.cursor() as cur:
+                cur.execute(explain_query)
+                result = cur.fetchone()[0]
+
+                if result and len(result) > 0:
+                    plan = result[0]
+                    execution_time = plan.get("Execution Time", 0)
+                    planning_time = plan.get("Planning Time", 0)
+                    total_time = execution_time + planning_time
+
+                    plan_node = plan.get("Plan", {})
+                    total_cost = plan_node.get("Total Cost", 0)
+                    rows_estimated = plan_node.get("Plan Rows", 0)
+                    rows_actual = plan_node.get("Actual Rows", 0)
+
+                    return ExplainResult(
+                        original_query=query_text,
+                        parameterized_query=parameterized_query,
+                        explain_plan=plan,
+                        execution_time_ms=total_time,
+                        total_cost=total_cost,
+                        rows_estimated=rows_estimated,
+                        rows_actual=rows_actual,
+                    )
+        except Exception as e:
+            # Log the error but don't fail the entire analysis
+            print(f"Error executing EXPLAIN ANALYZE: {e}")
+            return None
+        finally:
+            if explain_conn:
+                explain_conn.close()
+
+        return None
+
     def analyze_table(self, table_name: str) -> TableDiagnostics:
         """Complete analysis of a specific table."""
         # Handle schema-qualified table names
@@ -370,6 +715,17 @@ class DiagnosticController:
         # Get problem queries
         problem_queries = self.get_problem_queries(table_name, limit=5)
 
+        # Get table columns
+        columns = self.get_table_columns(table_name)
+
+        # Execute EXPLAIN ANALYZE on problem queries
+        explain_results = []
+        for query in problem_queries:
+            if query.query_text and query.query_text.strip():
+                result = self._execute_explain_analyze(query.query_text, columns)
+                if result:
+                    explain_results.append(result)
+
         # Generate recommendations
         recommendations = self._generate_recommendations(scan_stats, indexes, problem_queries)
 
@@ -379,6 +735,8 @@ class DiagnosticController:
             indexes=indexes,
             problem_queries=problem_queries,
             recommendations=recommendations,
+            columns=columns,
+            explain_results=explain_results,
         )
 
     def _generate_recommendations(

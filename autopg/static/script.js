@@ -161,35 +161,37 @@ function displayProblemQueries(queries) {
         return;
     }
 
-    let html = `
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Query</th>
-                        <th>Calls</th>
-                        <th>Total Time</th>
-                        <th>Avg Time</th>
-                        <th>Max Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    let html = '<div class="problem-queries-list">';
 
-    queries.forEach(query => {
-        const queryText = query.query_text.substring(0, 100) + (query.query_text.length > 100 ? '...' : '');
+    queries.forEach((query, index) => {
         html += `
-            <tr>
-                <td><code>${escapeHtml(queryText)}</code></td>
-                <td>${formatNumber(query.calls)}</td>
-                <td>${formatDuration(query.total_time_ms / 1000)}</td>
-                <td>${query.mean_time_ms.toFixed(2)}ms</td>
-                <td>${query.max_time_ms.toFixed(2)}ms</td>
-            </tr>
+            <div class="problem-query-item">
+                <div class="query-stats">
+                    <div class="query-stat">
+                        <div class="query-stat-value">${formatNumber(query.calls)}</div>
+                        <div class="query-stat-label">Calls</div>
+                    </div>
+                    <div class="query-stat">
+                        <div class="query-stat-value">${formatDuration(query.total_time_ms / 1000)}</div>
+                        <div class="query-stat-label">Total Time</div>
+                    </div>
+                    <div class="query-stat">
+                        <div class="query-stat-value">${query.mean_time_ms.toFixed(2)}ms</div>
+                        <div class="query-stat-label">Avg Time</div>
+                    </div>
+                    <div class="query-stat">
+                        <div class="query-stat-value">${query.max_time_ms.toFixed(2)}ms</div>
+                        <div class="query-stat-label">Max Time</div>
+                    </div>
+                </div>
+                <div class="highlight-container">
+                    ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
+                </div>
+            </div>
         `;
     });
 
-    html += '</tbody></table></div>';
+    html += '</div>';
     document.getElementById('problem-queries-content').innerHTML = html;
 }
 
@@ -236,53 +238,98 @@ async function analyzeTable(tableName) {
 function displayTableAnalysis(analysis) {
     let html = `
         <div>
-            <h3>Scan Statistics</h3>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-value">${formatNumber(analysis.scan_stats.seq_scan_count)}</div>
-                    <div class="stat-label">Sequential Scans</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value">${formatNumber(analysis.scan_stats.seq_rows_read)}</div>
-                    <div class="stat-label">Rows Read</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value">${analysis.scan_stats.index_usage_percentage}%</div>
-                    <div class="stat-label">Index Usage</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-value">${analysis.scan_stats.table_size}</div>
-                    <div class="stat-label">Table Size</div>
+            <div class="modal-section">
+                <h3 class="modal-section-title">Scan Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value">${formatNumber(analysis.scan_stats.seq_scan_count)}</div>
+                        <div class="stat-label">Sequential Scans</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${formatNumber(analysis.scan_stats.seq_rows_read)}</div>
+                        <div class="stat-label">Rows Read</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${analysis.scan_stats.index_usage_percentage}%</div>
+                        <div class="stat-label">Index Usage</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${analysis.scan_stats.table_size}</div>
+                        <div class="stat-label">Table Size</div>
+                    </div>
                 </div>
             </div>
 
-            <h3>Existing Indexes</h3>
+            <div class="modal-section">
+                <h3 class="modal-section-title">Existing Indexes</h3>
     `;
 
     if (analysis.indexes && analysis.indexes.length > 0) {
-        html += '<ul>';
+        html += '<div class="indexes-list">';
         analysis.indexes.forEach(idx => {
-            html += `<li><strong>${idx.index_name}</strong> (${idx.index_size}): ${escapeHtml(idx.index_def)}</li>`;
+            html += `
+                <div class="index-item">
+                    <div class="index-header">
+                        <span class="index-name">${escapeHtml(idx.index_name)}</span>
+                        <span class="index-size">${idx.index_size}</span>
+                    </div>
+                    <div class="highlight-container">
+                        ${idx.index_def_html || `<code>${escapeHtml(idx.index_def)}</code>`}
+                    </div>
+                </div>
+            `;
         });
-        html += '</ul>';
+        html += '</div>';
     } else {
-        html += '<p>No indexes found on this table.</p>';
+        html += '<div class="alert alert-warning">No indexes found on this table.</div>';
     }
+    html += '</div>';
 
     if (analysis.recommendations && analysis.recommendations.length > 0) {
-        html += '<h3>Recommendations</h3>';
+        html += `
+            <div class="modal-section">
+                <h3 class="modal-section-title">Recommendations</h3>
+        `;
         analysis.recommendations.forEach(rec => {
             html += `<div class="recommendation">${rec}</div>`;
         });
+        html += '</div>';
     }
 
     if (analysis.problem_queries && analysis.problem_queries.length > 0) {
-        html += '<h3>Problem Queries</h3>';
-        html += '<ul>';
+        html += `
+            <div class="modal-section">
+                <h3 class="modal-section-title">Problem Queries</h3>
+                <div class="problem-queries-list">
+        `;
         analysis.problem_queries.forEach(query => {
-            html += `<li>${escapeHtml(query.query_text.substring(0, 100))} - ${query.calls} calls, avg ${query.mean_time_ms}ms</li>`;
+            html += `
+                <div class="problem-query-item">
+                    <div class="query-stats">
+                        <div class="query-stat">
+                            <div class="query-stat-value">${formatNumber(query.calls)}</div>
+                            <div class="query-stat-label">Calls</div>
+                        </div>
+                        <div class="query-stat">
+                            <div class="query-stat-value">${query.mean_time_ms.toFixed(2)}ms</div>
+                            <div class="query-stat-label">Avg Time</div>
+                        </div>
+                        <div class="query-stat">
+                            <div class="query-stat-value">${query.max_time_ms.toFixed(2)}ms</div>
+                            <div class="query-stat-label">Max Time</div>
+                        </div>
+                        <div class="query-stat">
+                            <div class="query-stat-value">${formatDuration(query.total_time_ms / 1000)}</div>
+                            <div class="query-stat-label">Total Time</div>
+                        </div>
+                    </div>
+                    <div class="highlight-container">
+                        ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
+                    </div>
+                </div>
+            `;
         });
-        html += '</ul>';
+        html += '</div></div>';
     }
 
     html += '</div>';

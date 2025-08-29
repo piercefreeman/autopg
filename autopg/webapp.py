@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -12,6 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from pygments import highlight
+from pygments.lexers import SqlLexer
+from pygments.formatters import HtmlFormatter
 
 from autopg.diagnostics import (
     ActiveQuery,
@@ -116,6 +120,33 @@ class QueryPlanResponse(BaseModel):
     plan: dict
 
 
+class EnhancedTableIndexInfo(BaseModel):
+    """Enhanced table index info with HTML formatting."""
+    index_name: str
+    index_size: str
+    index_def: str
+    index_def_html: str  # HTML-formatted definition
+    
+
+class EnhancedQueryStats(BaseModel):
+    """Enhanced query stats with HTML formatting."""
+    query_text: str
+    query_text_html: str  # HTML-formatted query
+    calls: int
+    total_time_ms: float
+    mean_time_ms: float
+    max_time_ms: float
+
+
+class EnhancedTableDiagnostics(BaseModel):
+    """Enhanced table diagnostics with HTML formatting."""
+    table_name: str
+    scan_stats: TableScanStats
+    indexes: List[EnhancedTableIndexInfo]
+    recommendations: List[str]
+    problem_queries: List[EnhancedQueryStats]
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -125,6 +156,53 @@ logger = logging.getLogger(__name__)
 
 # Global controller instance
 controller: Optional[DiagnosticController] = None
+
+# SQL syntax highlighting setup
+sql_lexer = SqlLexer()
+html_formatter = HtmlFormatter(
+    style='default',
+    cssclass='highlight',
+    nowrap=True,
+    noclasses=False
+)
+
+
+def highlight_sql(sql_text: str) -> str:
+    """Apply SQL syntax highlighting to a query string.
+    
+    Args:
+        sql_text: Raw SQL query text
+        
+    Returns:
+        HTML-formatted SQL with syntax highlighting
+    """
+    if not sql_text or not sql_text.strip():
+        return ""
+    
+    # Clean up the SQL text
+    cleaned_sql = sql_text.strip()
+    
+    # Apply syntax highlighting
+    try:
+        highlighted = highlight(cleaned_sql, sql_lexer, html_formatter)
+        return highlighted
+    except Exception as e:
+        logger.warning(f"Failed to highlight SQL: {e}")
+        # Fallback to escaped HTML
+        import html
+        return f'<code>{html.escape(cleaned_sql)}</code>'
+
+
+def format_index_definition(index_def: str) -> str:
+    """Format an index definition with syntax highlighting.
+    
+    Args:
+        index_def: Raw index definition SQL
+        
+    Returns:
+        HTML-formatted index definition
+    """
+    return highlight_sql(index_def)
 
 
 @asynccontextmanager
@@ -227,16 +305,48 @@ async def get_heavy_seq_scans(limit: int = Query(default=20, le=100)):
     return controller.get_heavy_seq_scan_tables(limit=limit)
 
 
-@app.get("/api/diagnostics/table/{table_name}", response_model=TableDiagnostics)
+@app.get("/api/diagnostics/table/{table_name}", response_model=EnhancedTableDiagnostics)
 async def analyze_table(table_name: str):
     """Analyze a specific table for performance issues."""
     if not controller:
         raise DiagnosticError("Database controller not initialized")
     
-    return controller.analyze_table(table_name)
+    # Get the original diagnostics
+    diagnostics = controller.analyze_table(table_name)
+    
+    # Enhance with HTML formatting
+    enhanced_indexes = [
+        EnhancedTableIndexInfo(
+            index_name=idx.index_name,
+            index_size=idx.index_size,
+            index_def=idx.index_def,
+            index_def_html=format_index_definition(idx.index_def)
+        )
+        for idx in diagnostics.indexes
+    ]
+    
+    enhanced_queries = [
+        EnhancedQueryStats(
+            query_text=query.query_text,
+            query_text_html=highlight_sql(query.query_text),
+            calls=query.calls,
+            total_time_ms=query.total_time_ms,
+            mean_time_ms=query.mean_time_ms,
+            max_time_ms=query.max_time_ms
+        )
+        for query in diagnostics.problem_queries
+    ]
+    
+    return EnhancedTableDiagnostics(
+        table_name=diagnostics.table_name,
+        scan_stats=diagnostics.scan_stats,
+        indexes=enhanced_indexes,
+        recommendations=diagnostics.recommendations,
+        problem_queries=enhanced_queries
+    )
 
 
-@app.get("/api/diagnostics/queries", response_model=List[QueryStats])
+@app.get("/api/diagnostics/queries", response_model=List[EnhancedQueryStats])
 async def get_problem_queries(
     table_name: Optional[str] = Query(default=None),
     limit: int = Query(default=10, le=100)
@@ -245,7 +355,20 @@ async def get_problem_queries(
     if not controller:
         raise DiagnosticError("Database controller not initialized")
     
-    return controller.get_problem_queries(table_name=table_name, limit=limit)
+    queries = controller.get_problem_queries(table_name=table_name, limit=limit)
+    
+    # Enhance with HTML formatting
+    return [
+        EnhancedQueryStats(
+            query_text=query.query_text,
+            query_text_html=highlight_sql(query.query_text),
+            calls=query.calls,
+            total_time_ms=query.total_time_ms,
+            mean_time_ms=query.mean_time_ms,
+            max_time_ms=query.max_time_ms
+        )
+        for query in queries
+    ]
 
 
 @app.get("/api/diagnostics/active-queries", response_model=List[ActiveQuery])

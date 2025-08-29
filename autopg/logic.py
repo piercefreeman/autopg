@@ -41,6 +41,7 @@ from autopg.constants import (
     HARD_DRIVE_SSD,
     OS_LINUX,
     OS_WINDOWS,
+    PG_STAT_STATEMENTS_SQL,
     SIZE_UNIT_GB,
     SIZE_UNIT_MAP,
 )
@@ -313,3 +314,13 @@ class PostgresConfig:
             "pg_stat_statements.track": "all",
             "pg_stat_statements.max": 10000,
         }
+
+    def get_pg_stat_statements_sql(self) -> str:
+        """
+        Get SQL initialization script for pg_stat_statements extension.
+        Returns SQL commands to create and configure the extension.
+        """
+        if not self.state.enable_pg_stat_statements:
+            return ""
+
+        return PG_STAT_STATEMENTS_SQL

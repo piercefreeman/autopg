@@ -249,6 +249,20 @@ def build_config(pg_path: str) -> None:
     try:
         write_postgresql_conf(final_config, pg_path)
         console.print("\n[green]Successfully wrote new PostgreSQL configuration![/green]")
+
+        # Write SQL initialization file if pg_stat_statements is enabled
+        init_sql = pg_config.get_pg_stat_statements_sql()
+        if init_sql.strip():
+            init_sql_path = Path("/docker-entrypoint-initdb.d") / "init_extensions.sql"
+            with open(init_sql_path, "w") as f:
+                f.write(init_sql)
+            console.print(
+                f"[green]Successfully wrote SQL initialization file: {init_sql_path}[/green]"
+            )
+            console.print(
+                "[yellow]Run this SQL file in your database to enable extensions:[/yellow]"
+            )
+            console.print(f"[yellow]  psql -d your_database -f {init_sql_path}[/yellow]")
     except Exception as e:
         console.print(f"\n[red]Error writing configuration: {str(e)}[/red]")
         sys.exit(1)

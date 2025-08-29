@@ -41,3 +41,9 @@ KNOWN_STORAGE_VARS = [
 PG_CONFIG_DIR = "/etc/postgresql"
 PG_CONFIG_FILE = "postgresql.conf"
 PG_CONFIG_FILE_BASE = "postgresql.conf.base"
+
+PG_STAT_STATEMENTS_SQL = """-- AutoPG Extension Initialization
+-- Enable pg_stat_statements extension for query statistics
+
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+"""

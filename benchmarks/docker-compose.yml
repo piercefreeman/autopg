@@ -32,10 +32,9 @@ services:
       - "5432:5432"  # PostgreSQL port
       - "8000:8000"  # Diagnostics webapp port
     volumes:
-      - postgres_data_v3:/var/lib/postgresql/data
+      - postgres_data_v6:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -68,7 +67,7 @@ services:
       - autopg-network
 
 volumes:
-  postgres_data_v3:
+  postgres_data_v6:
 
 networks:
   autopg-network:

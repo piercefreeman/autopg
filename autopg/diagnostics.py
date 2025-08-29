@@ -190,7 +190,7 @@ class DiagnosticController:
     def get_heavy_seq_scan_tables(self, limit: int = 20) -> List[TableScanStats]:
         """Find tables with heavy sequential scans."""
         query = """
-        SELECT 
+        SELECT
             schemaname,
             relname,
             seq_scan,
@@ -228,7 +228,7 @@ class DiagnosticController:
                 return []  # Extension not available
 
         query = """
-        SELECT 
+        SELECT
             substring(query, 1, 500) as query_text,
             calls,
             total_exec_time::bigint as total_ms,
@@ -272,14 +272,14 @@ class DiagnosticController:
             params = (table_name,)
 
         query = f"""
-        SELECT 
+        SELECT
             tablename,
             indexname,
             indexdef,
             COALESCE(
                 (SELECT pg_size_pretty(pg_relation_size(c.oid))
-                 FROM pg_class c 
-                 WHERE c.relname = pg_indexes.indexname 
+                 FROM pg_class c
+                 WHERE c.relname = pg_indexes.indexname
                  AND c.relkind = 'i'),
                 'N/A'
             ) as index_size
@@ -301,7 +301,7 @@ class DiagnosticController:
     def get_active_queries(self, min_duration_seconds: float = 5.0) -> List[ActiveQuery]:
         """Get currently active queries."""
         query = """
-        SELECT 
+        SELECT
             main.pid,
             EXTRACT(EPOCH FROM (now() - main.query_start)) as duration_seconds,
             main.state,
@@ -339,7 +339,7 @@ class DiagnosticController:
 
         # Get scan stats for this table
         query = f"""
-        SELECT 
+        SELECT
             schemaname,
             relname,
             seq_scan,

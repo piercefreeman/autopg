@@ -196,7 +196,7 @@ def status(ctx: click.Context) -> None:
         async with AsyncDatabaseConnection(**ctx.obj["db_config"]) as db:
             # Get table sizes
             table_stats = await db.execute("""
-                SELECT 
+                SELECT
                     schemaname,
                     tablename,
                     pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
@@ -207,7 +207,7 @@ def status(ctx: click.Context) -> None:
                     seq_tup_read,
                     idx_scan,
                     idx_tup_fetch
-                FROM pg_stat_user_tables 
+                FROM pg_stat_user_tables
                 WHERE schemaname = 'benchmark'
                 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
             """)

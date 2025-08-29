@@ -82,7 +82,7 @@ class AsyncDatabaseConnection:
     async def get_table_info(self, schema: str = "benchmark") -> Dict[str, Dict[str, Any]]:
         """Get information about tables in the specified schema."""
         query = """
-            SELECT 
+            SELECT
                 t.table_name,
                 pg_size_pretty(pg_total_relation_size(quote_ident(t.table_schema)||'.'||quote_ident(t.table_name))) as size,
                 pg_total_relation_size(quote_ident(t.table_schema)||'.'||quote_ident(t.table_name)) as size_bytes,
@@ -131,7 +131,7 @@ class AsyncDatabaseConnection:
     async def get_query_stats(self) -> List[Dict[str, Any]]:
         """Get query statistics from pg_stat_statements."""
         query = """
-            SELECT 
+            SELECT
                 query,
                 calls,
                 total_exec_time,

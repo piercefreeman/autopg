@@ -5,6 +5,74 @@ let currentData = {
     summary: null
 };
 
+// Template utilities
+class TemplateRenderer {
+    static cloneTemplate(templateId) {
+        const template = document.getElementById(templateId);
+        if (!template) {
+            throw new Error(`Template with id "${templateId}" not found`);
+        }
+        return template.content.cloneNode(true);
+    }
+
+    static populateFields(element, data) {
+        const fields = element.querySelectorAll('[data-field]');
+        fields.forEach((field) => {
+            const fieldName = field.getAttribute('data-field');
+            if (fieldName && data.hasOwnProperty(fieldName)) {
+                const value = data[fieldName];
+                if (field.tagName === 'INPUT' || field.tagName === 'TEXTAREA') {
+                    field.value = value;
+                } else {
+                    field.textContent = value;
+                }
+            }
+        });
+    }
+
+    static populateHTML(element, data) {
+        const fields = element.querySelectorAll('[data-field]');
+        fields.forEach((field) => {
+            const fieldName = field.getAttribute('data-field');
+            if (fieldName && data.hasOwnProperty(fieldName)) {
+                field.innerHTML = data[fieldName];
+            }
+        });
+    }
+
+    static attachEventListeners(element, handlers) {
+        const actions = element.querySelectorAll('[data-action]');
+        actions.forEach((action) => {
+            const actionName = action.getAttribute('data-action');
+            if (actionName && handlers[actionName]) {
+                action.addEventListener('click', (event) => handlers[actionName](event, action));
+            }
+        });
+    }
+
+    static showAlert(container, message, type = 'success') {
+        const fragment = this.cloneTemplate('alert-template');
+        const alertElement = fragment.querySelector('.alert');
+        if (alertElement) {
+            alertElement.classList.add(`alert-${type}`);
+            this.populateFields(fragment, { 
+                'alert-type': `alert-${type}`,
+                'message': message 
+            });
+        }
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
+    static showLoading(container, message = 'Loading...') {
+        const fragment = this.cloneTemplate('loading-template');
+        this.populateFields(fragment, { message });
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+}
+
+// API utilities
 async function apiCall(endpoint, options = {}) {
     try {
         const response = await fetch(`/api${endpoint}`, options);
@@ -19,6 +87,7 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
+// Main diagnostic functions
 async function runFullDiagnostics() {
     showLoading('all');
     
@@ -29,195 +98,190 @@ async function runFullDiagnostics() {
         displayRecommendations(summary.recommendations);
     }
 
-    await getHeavyScans();
-    await getActiveQueries();
-    await getProblemQueries();
+    await Promise.all([
+        getHeavyScans(),
+        getActiveQueries(),
+        getProblemQueries()
+    ]);
 }
 
 async function getHeavyScans() {
-    showLoading('heavy-scans');
+    const container = document.getElementById('heavy-scans-content');
+    TemplateRenderer.showLoading(container);
+    
     const data = await apiCall('/diagnostics/heavy-scans?limit=20');
     if (data) {
         currentData.heavyScans = data;
-        displayHeavyScans(data);
+        displayHeavyScans(data, container);
     }
 }
 
 async function getActiveQueries() {
-    showLoading('active-queries');
+    const container = document.getElementById('active-queries-content');
+    TemplateRenderer.showLoading(container);
+    
     const data = await apiCall('/diagnostics/active-queries?min_duration=1');
     if (data) {
         currentData.activeQueries = data;
-        displayActiveQueries(data);
+        displayActiveQueries(data, container);
     }
 }
 
 async function getProblemQueries() {
-    showLoading('problem-queries');
+    const container = document.getElementById('problem-queries-content');
+    TemplateRenderer.showLoading(container);
+    
     const data = await apiCall('/diagnostics/queries?limit=20');
     if (data) {
-        displayProblemQueries(data);
+        displayProblemQueries(data, container);
     }
 }
 
-function displayHeavyScans(tables) {
+// Display functions using templates
+function displayHeavyScans(tables, container) {
     if (!tables || tables.length === 0) {
-        document.getElementById('heavy-scans-content').innerHTML = 
-            '<div class="alert alert-success">No tables with heavy sequential scans found!</div>';
+        TemplateRenderer.showAlert(container, 'No tables with heavy sequential scans found!', 'success');
         return;
     }
 
-    let html = `
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Table</th>
-                        <th>Sequential Scans</th>
-                        <th>Seq Rows Read</th>
-                        <th>Index Usage %</th>
-                        <th>Size</th>
-                        <th>Severity</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    const tableFragment = TemplateRenderer.cloneTemplate('heavy-scans-table-template');
+    const tbody = tableFragment.getElementById('heavy-scans-tbody');
 
     tables.forEach(table => {
-        // Fix undefined table name issue - use the raw field names from the API
+        const rowFragment = TemplateRenderer.cloneTemplate('heavy-scan-row-template');
         const tableName = table.table_name || (table.schemaname && table.relname ? `${table.schemaname}.${table.relname}` : 'Unknown');
-        const severityClass = `severity-${table.severity}`;
         
-        html += `
-            <tr>
-                <td><strong>${escapeHtml(tableName)}</strong></td>
-                <td>${formatNumber(table.seq_scan_count || table.seq_scan || 0)}</td>
-                <td>${formatNumber(table.seq_rows_read || table.seq_tup_read || 0)}</td>
-                <td>${table.index_usage_percentage}%</td>
-                <td>${table.table_size}</td>
-                <td class="${severityClass}">${table.severity.toUpperCase()}</td>
-                <td>
-                    <button class="btn" onclick="analyzeTable('${escapeHtml(tableName)}')">
-                        Analyze
-                    </button>
-                </td>
-            </tr>
-        `;
+        const rowData = {
+            'table-name': tableName,
+            'seq-scan-count': formatNumber(table.seq_scan_count || table.seq_scan || 0),
+            'seq-rows-read': formatNumber(table.seq_rows_read || table.seq_tup_read || 0),
+            'index-usage': `${table.index_usage_percentage}%`,
+            'table-size': table.table_size,
+            'severity': table.severity.toUpperCase()
+        };
+
+        TemplateRenderer.populateFields(rowFragment, rowData);
+        
+        // Add severity class
+        const severityCell = rowFragment.querySelector('[data-field="severity"]');
+        if (severityCell) {
+            severityCell.classList.add(`severity-${table.severity}`);
+        }
+
+        // Attach event listeners
+        TemplateRenderer.attachEventListeners(rowFragment, {
+            'analyze-table': () => analyzeTable(tableName)
+        });
+
+        tbody.appendChild(rowFragment);
     });
 
-    html += '</tbody></table></div>';
-    document.getElementById('heavy-scans-content').innerHTML = html;
+    container.innerHTML = '';
+    container.appendChild(tableFragment);
 }
 
-function displayActiveQueries(queries) {
+function displayActiveQueries(queries, container) {
     if (!queries || queries.length === 0) {
-        document.getElementById('active-queries-content').innerHTML = 
-            '<div class="alert alert-success">No long-running queries detected!</div>';
+        TemplateRenderer.showAlert(container, 'No long-running queries detected!', 'success');
         return;
     }
 
-    let html = `
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>PID</th>
-                        <th>Duration</th>
-                        <th>State</th>
-                        <th>Query</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    const tableFragment = TemplateRenderer.cloneTemplate('active-queries-table-template');
+    const tbody = tableFragment.getElementById('active-queries-tbody');
 
     queries.forEach(query => {
-        const duration = formatDuration(query.duration_seconds);
+        const rowFragment = TemplateRenderer.cloneTemplate('active-query-row-template');
         const queryText = query.query.substring(0, 100) + (query.query.length > 100 ? '...' : '');
-        html += `
-            <tr>
-                <td>${query.pid}</td>
-                <td>${duration}</td>
-                <td>${query.state}</td>
-                <td><code>${escapeHtml(queryText)}</code></td>
-                <td>
-                    <button class="btn btn-primary" onclick="killQuery(${query.pid})">
-                        Kill
-                    </button>
-                </td>
-            </tr>
-        `;
+        
+        const rowData = {
+            'pid': query.pid.toString(),
+            'duration': formatDuration(query.duration_seconds),
+            'state': query.state,
+            'query': escapeHtml(queryText)
+        };
+
+        TemplateRenderer.populateFields(rowFragment, rowData);
+
+        // Attach event listeners
+        TemplateRenderer.attachEventListeners(rowFragment, {
+            'kill-query': () => killQuery(query.pid)
+        });
+
+        tbody.appendChild(rowFragment);
     });
 
-    html += '</tbody></table></div>';
-    document.getElementById('active-queries-content').innerHTML = html;
+    container.innerHTML = '';
+    container.appendChild(tableFragment);
 }
 
-function displayProblemQueries(queries) {
+function displayProblemQueries(queries, container) {
     if (!queries || queries.length === 0) {
-        document.getElementById('problem-queries-content').innerHTML = 
-            '<div class="alert alert-success">No problematic queries found!</div>';
+        TemplateRenderer.showAlert(container, 'No problematic queries found!', 'success');
         return;
     }
 
-    let html = '<div class="problem-queries-list">';
+    const listFragment = TemplateRenderer.cloneTemplate('problem-queries-list-template');
+    const listContainer = listFragment.getElementById('problem-queries-container');
 
-    queries.forEach((query, index) => {
-        html += `
-            <div class="problem-query-item">
-                <div class="query-stats">
-                    <div class="query-stat">
-                        <div class="query-stat-value">${formatNumber(query.calls)}</div>
-                        <div class="query-stat-label">Calls</div>
-                    </div>
-                    <div class="query-stat">
-                        <div class="query-stat-value">${formatDuration(query.total_time_ms / 1000)}</div>
-                        <div class="query-stat-label">Total Time</div>
-                    </div>
-                    <div class="query-stat">
-                        <div class="query-stat-value">${query.mean_time_ms.toFixed(2)}ms</div>
-                        <div class="query-stat-label">Avg Time</div>
-                    </div>
-                    <div class="query-stat">
-                        <div class="query-stat-value">${query.max_time_ms.toFixed(2)}ms</div>
-                        <div class="query-stat-label">Max Time</div>
-                    </div>
-                </div>
-                <div class="highlight">
-                    ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
-                </div>
-            </div>
-        `;
+    queries.forEach(query => {
+        const itemFragment = TemplateRenderer.cloneTemplate('problem-query-item-template');
+        
+        const itemData = {
+            'calls': formatNumber(query.calls),
+            'total-time': formatDuration(query.total_time_ms / 1000),
+            'avg-time': `${query.mean_time_ms.toFixed(2)}ms`,
+            'max-time': `${query.max_time_ms.toFixed(2)}ms`
+        };
+
+        TemplateRenderer.populateFields(itemFragment, itemData);
+
+        // Handle HTML content for query text
+        const queryTextElement = itemFragment.querySelector('[data-field="query-text"]');
+        if (queryTextElement) {
+            if (query.query_text_html) {
+                queryTextElement.innerHTML = query.query_text_html;
+            } else {
+                queryTextElement.innerHTML = `<code>${escapeHtml(query.query_text)}</code>`;
+            }
+        }
+
+        listContainer.appendChild(itemFragment);
     });
 
-    html += '</div>';
-    document.getElementById('problem-queries-content').innerHTML = html;
+    container.innerHTML = '';
+    container.appendChild(listFragment);
 }
 
 function displayRecommendations(recommendations) {
+    const container = document.getElementById('recommendations-content');
+    
     if (!recommendations || recommendations.length === 0) {
-        document.getElementById('recommendations-content').innerHTML = 
-            '<div class="alert alert-success">No critical issues found!</div>';
+        TemplateRenderer.showAlert(container, 'No critical issues found!', 'success');
         return;
     }
 
-    let html = '<div>';
-    recommendations.forEach((rec, index) => {
-        html += `
-            <div class="recommendation">
-                <h3>${index + 1}. ${rec.table_name}</h3>
-                <p><strong>Reason:</strong> ${rec.reason}</p>
-                <p><strong>Expected Improvement:</strong> ${rec.estimated_improvement}</p>
-                <div class="code-block">${escapeHtml(rec.create_statement)}</div>
-            </div>
-        `;
-    });
-    html += '</div>';
+    const listFragment = TemplateRenderer.cloneTemplate('recommendations-list-template');
+    const listContainer = listFragment.getElementById('recommendations-container');
 
-    document.getElementById('recommendations-content').innerHTML = html;
+    recommendations.forEach((rec, index) => {
+        const itemFragment = TemplateRenderer.cloneTemplate('recommendation-item-template');
+        
+        const itemData = {
+            'title': `${index + 1}. ${rec.table_name}`,
+            'reason': rec.reason,
+            'improvement': rec.estimated_improvement,
+            'create-statement': escapeHtml(rec.create_statement)
+        };
+
+        TemplateRenderer.populateFields(itemFragment, itemData);
+        listContainer.appendChild(itemFragment);
+    });
+
+    container.innerHTML = '';
+    container.appendChild(listFragment);
 }
 
+// Modal functions
 async function analyzeTable(tableName) {
     if (!tableName || tableName === 'undefined' || tableName === 'Unknown') {
         alert('Invalid table name. Please try refreshing the data.');
@@ -227,113 +291,106 @@ async function analyzeTable(tableName) {
     const modal = document.getElementById('tableModal');
     modal.style.display = 'block';
     document.getElementById('modal-title').textContent = `Analysis: ${tableName}`;
-    document.getElementById('modal-body').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    const modalBody = document.getElementById('modal-body');
+    TemplateRenderer.showLoading(modalBody);
 
     const data = await apiCall(`/diagnostics/table/${encodeURIComponent(tableName)}`);
     if (data) {
-        displayTableAnalysis(data);
+        displayTableAnalysis(data, modalBody);
     }
 }
 
-function displayTableAnalysis(analysis) {
-    let html = `
-        <div>
-            <div class="modal-section">
-                <h3 class="modal-section-title">Scan Statistics</h3>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value">${formatNumber(analysis.scan_stats.seq_scan_count)}</div>
-                        <div class="stat-label">Sequential Scans</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value">${formatNumber(analysis.scan_stats.seq_rows_read)}</div>
-                        <div class="stat-label">Rows Read</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value">${analysis.scan_stats.index_usage_percentage}%</div>
-                        <div class="stat-label">Index Usage</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value">${analysis.scan_stats.table_size}</div>
-                        <div class="stat-label">Table Size</div>
-                    </div>
-                </div>
-            </div>
+function displayTableAnalysis(analysis, container) {
+    container.innerHTML = '';
 
-            <div class="modal-section">
-                <h3 class="modal-section-title">Existing Indexes</h3>
-    `;
+    // Scan Statistics
+    const scanStatsFragment = TemplateRenderer.cloneTemplate('modal-scan-stats-template');
+    const scanStatsData = {
+        'seq-scan-count': formatNumber(analysis.scan_stats.seq_scan_count),
+        'seq-rows-read': formatNumber(analysis.scan_stats.seq_rows_read),
+        'index-usage': `${analysis.scan_stats.index_usage_percentage}%`,
+        'table-size': analysis.scan_stats.table_size
+    };
+    TemplateRenderer.populateFields(scanStatsFragment, scanStatsData);
+    container.appendChild(scanStatsFragment);
+
+    // Existing Indexes
+    const indexesFragment = TemplateRenderer.cloneTemplate('modal-indexes-section-template');
+    const indexesContainer = indexesFragment.getElementById('modal-indexes-container');
 
     if (analysis.indexes && analysis.indexes.length > 0) {
-        html += '<div class="indexes-list">';
-        analysis.indexes.forEach(idx => {
-            html += `
-                <div class="index-item">
-                    <div class="index-header">
-                        <span class="index-name">${escapeHtml(idx.index_name)}</span>
-                        <span class="index-size">${idx.index_size}</span>
-                    </div>
-                    <div class="highlight">
-                        ${idx.index_def_html || `<code>${escapeHtml(idx.index_def)}</code>`}
-                    </div>
-                </div>
-            `;
+        analysis.indexes.forEach((idx) => {
+            const indexFragment = TemplateRenderer.cloneTemplate('modal-index-item-template');
+            const indexData = {
+                'index-name': idx.index_name,
+                'index-size': idx.index_size
+            };
+            TemplateRenderer.populateFields(indexFragment, indexData);
+
+            // Handle HTML content for index definition
+            const indexDefElement = indexFragment.querySelector('[data-field="index-def"]');
+            if (indexDefElement) {
+                if (idx.index_def_html) {
+                    indexDefElement.innerHTML = idx.index_def_html;
+                } else {
+                    indexDefElement.innerHTML = `<code>${escapeHtml(idx.index_def)}</code>`;
+                }
+            }
+
+            indexesContainer.appendChild(indexFragment);
         });
-        html += '</div>';
     } else {
-        html += '<div class="alert alert-warning">No indexes found on this table.</div>';
+        TemplateRenderer.showAlert(indexesContainer, 'No indexes found on this table.', 'warning');
     }
-    html += '</div>';
+    container.appendChild(indexesFragment);
 
+    // Recommendations
     if (analysis.recommendations && analysis.recommendations.length > 0) {
-        html += `
-            <div class="modal-section">
-                <h3 class="modal-section-title">Recommendations</h3>
-        `;
-        analysis.recommendations.forEach(rec => {
-            html += `<div class="recommendation">${rec}</div>`;
+        const recommendationsFragment = TemplateRenderer.cloneTemplate('modal-recommendations-section-template');
+        const recommendationsContainer = recommendationsFragment.getElementById('modal-recommendations-container');
+
+        analysis.recommendations.forEach((rec) => {
+            const recFragment = TemplateRenderer.cloneTemplate('modal-recommendation-item-template');
+            TemplateRenderer.populateFields(recFragment, { 'recommendation-text': rec });
+            recommendationsContainer.appendChild(recFragment);
         });
-        html += '</div>';
+
+        container.appendChild(recommendationsFragment);
     }
 
+    // Problem Queries
     if (analysis.problem_queries && analysis.problem_queries.length > 0) {
-        html += `
-            <div class="modal-section">
-                <h3 class="modal-section-title">Problem Queries</h3>
-                <div class="problem-queries-list">
-        `;
-        analysis.problem_queries.forEach(query => {
-            html += `
-                <div class="problem-query-item">
-                    <div class="query-stats">
-                        <div class="query-stat">
-                            <div class="query-stat-value">${formatNumber(query.calls)}</div>
-                            <div class="query-stat-label">Calls</div>
-                        </div>
-                        <div class="query-stat">
-                            <div class="query-stat-value">${query.mean_time_ms.toFixed(2)}ms</div>
-                            <div class="query-stat-label">Avg Time</div>
-                        </div>
-                        <div class="query-stat">
-                            <div class="query-stat-value">${query.max_time_ms.toFixed(2)}ms</div>
-                            <div class="query-stat-label">Max Time</div>
-                        </div>
-                        <div class="query-stat">
-                            <div class="query-stat-value">${formatDuration(query.total_time_ms / 1000)}</div>
-                            <div class="query-stat-label">Total Time</div>
-                        </div>
-                    </div>
-                    <div class="highlight">
-                        ${query.query_text_html || `<code>${escapeHtml(query.query_text)}</code>`}
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div></div>';
-    }
+        const problemQueriesFragment = TemplateRenderer.cloneTemplate('modal-problem-queries-section-template');
+        const problemQueriesContainer = problemQueriesFragment.getElementById('modal-problem-queries-container');
 
-    html += '</div>';
-    document.getElementById('modal-body').innerHTML = html;
+        analysis.problem_queries.forEach((query) => {
+            const queryFragment = TemplateRenderer.cloneTemplate('problem-query-item-template');
+            
+            const queryData = {
+                'calls': formatNumber(query.calls),
+                'total-time': formatDuration(query.total_time_ms / 1000),
+                'avg-time': `${query.mean_time_ms.toFixed(2)}ms`,
+                'max-time': `${query.max_time_ms.toFixed(2)}ms`
+            };
+
+            TemplateRenderer.populateFields(queryFragment, queryData);
+
+            // Handle HTML content for query text
+            const queryTextElement = queryFragment.querySelector('[data-field="query-text"]');
+            if (queryTextElement) {
+                if (query.query_text_html) {
+                    queryTextElement.innerHTML = query.query_text_html;
+                } else {
+                    queryTextElement.innerHTML = `<code>${escapeHtml(query.query_text)}</code>`;
+                }
+            }
+
+            problemQueriesContainer.appendChild(queryFragment);
+        });
+
+        container.appendChild(problemQueriesFragment);
+    }
 }
 
 async function killQuery(pid) {
@@ -348,34 +405,39 @@ async function killQuery(pid) {
     }
 }
 
+// System stats update
 function updateSystemStats(summary) {
     document.getElementById('total-seq-reads').textContent = formatNumberShort(summary.total_seq_reads);
     document.getElementById('total-idx-reads').textContent = formatNumberShort(summary.total_idx_reads);
-    document.getElementById('critical-tables').textContent = summary.critical_tables.length;
-    document.getElementById('active-queries').textContent = summary.active_problems.length;
+    document.getElementById('critical-tables').textContent = summary.critical_tables.length.toString();
+    document.getElementById('active-queries').textContent = summary.active_problems.length.toString();
 }
 
+// Loading utilities
 function showLoading(section) {
-    const loadingHtml = '<div class="loading"><div class="spinner"></div>Loading...</div>';
-    
-    if (section === 'all' || section === 'heavy-scans') {
-        document.getElementById('heavy-scans-content').innerHTML = loadingHtml;
-    }
-    if (section === 'all' || section === 'active-queries') {
-        document.getElementById('active-queries-content').innerHTML = loadingHtml;
-    }
-    if (section === 'all' || section === 'problem-queries') {
-        document.getElementById('problem-queries-content').innerHTML = loadingHtml;
-    }
-    if (section === 'all' || section === 'recommendations') {
-        document.getElementById('recommendations-content').innerHTML = loadingHtml;
-    }
+    const containers = {
+        'heavy-scans': 'heavy-scans-content',
+        'active-queries': 'active-queries-content',
+        'problem-queries': 'problem-queries-content',
+        'recommendations': 'recommendations-content'
+    };
+
+    const sectionsToUpdate = section === 'all' ? Object.values(containers) : [containers[section]].filter(Boolean);
+
+    sectionsToUpdate.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            TemplateRenderer.showLoading(container);
+        }
+    });
 }
 
+// Modal utilities
 function closeModal() {
     document.getElementById('tableModal').style.display = 'none';
 }
 
+// Utility functions
 function formatNumber(num) {
     return new Intl.NumberFormat().format(num);
 }
@@ -404,7 +466,7 @@ async function refreshData() {
     await runFullDiagnostics();
 }
 
-// Close modal when clicking outside
+// Event listeners
 window.onclick = function(event) {
     const modal = document.getElementById('tableModal');
     if (event.target == modal) {
@@ -412,7 +474,7 @@ window.onclick = function(event) {
     }
 }
 
-// Load initial data on page load
+// Initialize on page load
 window.onload = async function() {
     await runFullDiagnostics();
 }

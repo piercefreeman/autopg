@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ class TableScanStats(BaseModel):
     severity: IndexUsageLevel = Field(description="Severity level based on index usage")
 
     @classmethod
-    def from_db_row(cls, row: dict) -> "TableScanStats":
+    def from_db_row(cls, row: Dict[str, Any]) -> "TableScanStats":
         """Create from database row result."""
         total_scans = row["seq_scan"] + row["idx_scan"]
         if total_scans == 0:
@@ -48,12 +48,12 @@ class TableScanStats(BaseModel):
             severity = IndexUsageLevel.OK
 
         return cls(
-            schema_name=row.get("schemaname", "unknown"),
-            table_name=row.get("relname", "unknown"),
-            seq_scan_count=row.get("seq_scan", 0),
-            seq_rows_read=row.get("seq_tup_read", 0),
-            idx_scan_count=row.get("idx_scan", 0),
-            idx_rows_fetched=row.get("idx_tup_fetch", 0),
+            schemaname=row.get("schemaname", "unknown"),
+            relname=row.get("relname", "unknown"),
+            seq_scan=row.get("seq_scan", 0),
+            seq_tup_read=row.get("seq_tup_read", 0),
+            idx_scan=row.get("idx_scan", 0),
+            idx_tup_fetch=row.get("idx_tup_fetch", 0),
             index_usage_percentage=index_usage,
             table_size=row.get("table_size", "unknown"),
             severity=severity,
@@ -71,7 +71,7 @@ class QueryStats(BaseModel):
     rows_returned: int = Field(description="Average rows returned", default=0)
 
     @classmethod
-    def from_db_row(cls, row: dict) -> "QueryStats":
+    def from_db_row(cls, row: Dict[str, Any]) -> "QueryStats":
         """Create from database row result."""
         return cls(
             query_text=row.get("query_text", ""),
@@ -94,7 +94,7 @@ class TableIndexInfo(BaseModel):
     is_unique: bool = False
 
     @classmethod
-    def from_db_row(cls, row: dict) -> "TableIndexInfo":
+    def from_db_row(cls, row: Dict[str, Any]) -> "TableIndexInfo":
         """Create from database row result."""
         index_def = row.get("indexdef", "")
         return cls(
@@ -129,7 +129,7 @@ class ActiveQuery(BaseModel):
     is_blocking: bool = False
 
     @classmethod
-    def from_db_row(cls, row: dict) -> "ActiveQuery":
+    def from_db_row(cls, row: Dict[str, Any]) -> "ActiveQuery":
         """Create from database row result."""
         return cls(
             pid=row["pid"],
@@ -214,7 +214,9 @@ class DiagnosticController:
                 results.append(TableScanStats.from_db_row(row_dict))
         return results
 
-    def get_problem_queries(self, table_name: str = None, limit: int = 10) -> List[QueryStats]:
+    def get_problem_queries(
+        self, table_name: Optional[str] = None, limit: int = 10
+    ) -> List[QueryStats]:
         """Get problematic queries, optionally filtered by table."""
         # Check if pg_stat_statements extension is enabled
         check_query = (

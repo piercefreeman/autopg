@@ -447,9 +447,9 @@ async def explain_query_plan(table_name: str, query: str = Query(...)):
 
     explain_query = f"EXPLAIN (ANALYZE false, BUFFERS true, FORMAT JSON) {query}"
 
-    conn = controller._get_connection()
+    conn = controller._get_connection()  # type: ignore[reportPrivateUsage]
     with conn.cursor() as cur:
-        cur.execute(explain_query)
+        cur.execute(explain_query)  # type: ignore[reportArgumentType]
         plan = cur.fetchone()[0]
 
     return QueryPlanResponse(query=query, plan=plan)

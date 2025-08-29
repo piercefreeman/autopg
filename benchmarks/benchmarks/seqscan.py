@@ -233,7 +233,7 @@ class AsyncSequentialScanBenchmark:
         start_time = time.time()
 
         async with pool.acquire() as conn:
-            result = await conn.fetch(query)
+            result = await conn.fetch(query)  # type: ignore[no-untyped-call]
             rows = len(result)
 
         iteration_time = time.time() - start_time
@@ -259,8 +259,8 @@ class AsyncSequentialScanBenchmark:
                 explain_query = f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}"
 
                 try:
-                    result = await db.execute_one(explain_query)
-                    explain_data = result[0][0] if result else {}
+                    result = await db.execute_one(explain_query)  # type: ignore[no-untyped-call]
+                    explain_data = result[0][0] if result else {}  # type: ignore[index]
 
                     # Extract key metrics
                     plan = explain_data.get("Plan", {})

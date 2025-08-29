@@ -5,7 +5,7 @@ Database connection and utilities for benchmarking using asyncpg.
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import asyncpg
 from rich.console import Console
@@ -126,7 +126,8 @@ class AsyncDatabaseConnection:
     async def analyze_table(self, table_name: str, schema: str = "benchmark") -> None:
         """Run ANALYZE on a table to update statistics."""
         query = f"ANALYZE {schema}.{table_name}"
-        await self.connection.execute(query)
+        if self.connection:
+            await self.connection.execute(query)
 
     async def get_query_stats(self) -> List[Dict[str, Any]]:
         """Get query statistics from pg_stat_statements."""
@@ -155,8 +156,9 @@ class AsyncDatabaseConnection:
     async def reset_stats(self) -> None:
         """Reset PostgreSQL statistics."""
         try:
-            await self.connection.execute("SELECT pg_stat_reset()")
-            await self.connection.execute("SELECT pg_stat_statements_reset()")
+            if self.connection:
+                await self.connection.execute("SELECT pg_stat_reset()")
+                await self.connection.execute("SELECT pg_stat_statements_reset()")
         except Exception as e:
             console.print(f"Warning: Could not reset stats: {e}", style="yellow")
 
@@ -181,7 +183,7 @@ class AsyncDatabaseConnection:
 @asynccontextmanager
 async def timed_operation(
     description: str, verbose: bool = False
-) -> Generator[Dict[str, float], None, None]:
+) -> AsyncGenerator[Dict[str, float], None]:
     """Async context manager to time database operations."""
     if verbose:
         console.print(f"⏱️  Starting: {description}")
@@ -230,7 +232,7 @@ class AsyncConnectionPool:
             self.pool = None
 
     @asynccontextmanager
-    async def acquire(self) -> asyncpg.Connection:
+    async def acquire(self) -> AsyncGenerator[asyncpg.Connection, None]:
         """Acquire a connection from the pool."""
         if not self.pool:
             raise RuntimeError("Connection pool not initialized")
@@ -295,6 +297,8 @@ class DatabaseConnection:
 
     def transaction(self):
         """Return a transaction context manager."""
+        if not self._loop:
+            raise RuntimeError("Connection not established")
         return SyncTransaction(self.async_conn, self._loop)
 
     def get_table_info(self, schema: str = "benchmark") -> Dict[str, Dict[str, Any]]:

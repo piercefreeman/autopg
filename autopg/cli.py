@@ -279,10 +279,12 @@ def generate_css(output_dir: Path | None, style: str) -> None:
     console.print(f"Generating Pygments CSS with style '{style}'...")
 
     # Create HTML formatter with the specified style
-    formatter = HtmlFormatter(style=style, cssclass="highlight", noclasses=False)
+    formatter = HtmlFormatter(  # type: ignore[no-untyped-call]
+        style=style, cssclass="highlight", noclasses=False
+    )
 
     # Generate CSS
-    css_content = formatter.get_style_defs(".highlight")
+    css_content = formatter.get_style_defs(".highlight")  # type: ignore[no-untyped-call]
 
     # Write CSS file
     with open(css_file, "w", encoding="utf-8") as f:

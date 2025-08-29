@@ -312,13 +312,16 @@ class AsyncInsertionBenchmark:
                             raise
 
                 # Submit all batch jobs
-                tasks = [execute_batch_with_semaphore(batch, i) for i, batch in enumerate(batches)]
+                tasks = [
+                    asyncio.create_task(execute_batch_with_semaphore(batch, i))
+                    for i, batch in enumerate(batches)
+                ]
 
                 # Collect results as they complete, handling errors gracefully
                 try:
-                    for coro in asyncio.as_completed(tasks):
+                    for task_obj in asyncio.as_completed(tasks):
                         try:
-                            batch_time = await coro
+                            batch_time = await task_obj
                             batch_times.append(batch_time)
                             completed_batches += 1
                             progress.update(task, completed=completed_batches)

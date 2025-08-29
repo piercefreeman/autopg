@@ -4,7 +4,7 @@ Utility functions for benchmarking operations.
 
 import statistics
 import time
-from typing import List, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 
 def format_duration(seconds: float) -> str:
@@ -43,7 +43,7 @@ def format_number(num: Union[int, float]) -> str:
         return f"{num / 1000000000:.1f}B"
 
 
-def calculate_statistics(values: List[float]) -> dict:
+def calculate_statistics(values: List[float]) -> Dict[str, float]:
     """Calculate statistical metrics from a list of values."""
     if not values:
         return {}
@@ -61,7 +61,7 @@ def calculate_statistics(values: List[float]) -> dict:
     }
 
 
-def chunks(lst: list, n: int):
+def chunks(lst: List[Any], n: int) -> Generator[List[Any], None, None]:
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
@@ -95,8 +95,10 @@ class Timer:
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return self.stop()
+    def __exit__(
+        self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]
+    ) -> None:
+        self.stop()
 
 
 def generate_random_string(length: int = 10) -> str:
@@ -226,7 +228,7 @@ def create_progress_callback(total: int, description: str = "Processing"):
 
 
 def batch_execute_with_progress(
-    db, query: str, param_batches: List[List], description: str = "Executing batches"
+    db: Any, query: str, param_batches: List[List[Any]], description: str = "Executing batches"
 ) -> List[float]:
     """Execute query batches with progress display and timing."""
     from rich.progress import (

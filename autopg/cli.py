@@ -2,6 +2,7 @@ import platform
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Dict
 
 import click
@@ -24,6 +25,7 @@ from autopg.postgres import (
     get_postgres_version,
     read_postgresql_conf,
     write_postgresql_conf,
+    write_sql_init_file,
 )
 from autopg.system_info import DiskType, get_cpu_info, get_disk_type, get_memory_info
 
@@ -79,6 +81,7 @@ class EnvOverrides(BaseSettings):
     CPU_COUNT: int | None = None
     NUM_CONNECTIONS: int | None = 100
     PRIMARY_DISK_TYPE: DiskType | None = None
+    ENABLE_PG_STAT_STATEMENTS: bool = True
 
     model_config = {"env_file": ".env", "env_prefix": "AUTOPG_"}
 
@@ -127,6 +130,9 @@ def display_detected_params(config: Configuration) -> None:
     table.add_row("CPU Count", str(config.cpu_num))
     table.add_row("Connection Count", str(config.connection_num))
     table.add_row("Hard Drive Type", config.hd_type)
+    table.add_row(
+        "pg_stat_statements", "Enabled" if config.enable_pg_stat_statements else "Disabled"
+    )
 
     console.print(table)
     console.print()
@@ -136,6 +142,14 @@ def display_detected_params(config: Configuration) -> None:
 def cli() -> None:
     """AutoPG CLI tool for PostgreSQL configuration and system analysis."""
     pass
+
+
+@cli.command()
+def webapp() -> None:
+    """Start the AutoPG diagnostics web application."""
+    from autopg.webapp import start_webapp
+
+    start_webapp()
 
 
 @cli.command()
@@ -167,6 +181,7 @@ def build_config(pg_path: str) -> None:
         cpu_num=env.CPU_COUNT or cpu_info.count,
         connection_num=env.NUM_CONNECTIONS,
         hd_type=env.PRIMARY_DISK_TYPE or disk_type or HARD_DRIVE_SSD,
+        enable_pg_stat_statements=env.ENABLE_PG_STAT_STATEMENTS,
     )
 
     # Display detected parameters
@@ -196,6 +211,9 @@ def build_config(pg_path: str) -> None:
 
     # Add WAL level settings
     new_config = {**new_config, **pg_config.get_wal_level()}
+
+    # Add pg_stat_statements settings
+    new_config = {**new_config, **pg_config.get_pg_stat_statements_config()}
 
     # Add WAL buffers if available
     wal_buffers = pg_config.get_wal_buffers()
@@ -232,6 +250,66 @@ def build_config(pg_path: str) -> None:
     try:
         write_postgresql_conf(final_config, pg_path)
         console.print("\n[green]Successfully wrote new PostgreSQL configuration![/green]")
+
+        # Write SQL initialization file if pg_stat_statements is enabled
+        init_sql = pg_config.get_pg_stat_statements_sql()
+        if init_sql.strip():
+            success, _ = write_sql_init_file(init_sql, "init_extensions.sql")
+            if not success:
+                console.print(
+                    "\n[yellow]Failed to write SQL initialization file. Run this SQL manually:[/yellow]"
+                )
+                console.print(f"[yellow]{init_sql}[/yellow]")
+
     except Exception as e:
         console.print(f"\n[red]Error writing configuration: {str(e)}[/red]")
         sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--output-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="Output directory for CSS files (defaults to autopg/static/)",
+)
+@click.option(
+    "--style",
+    type=str,
+    default="default",
+    help="Pygments style to use (default, github, monokai, etc.)",
+)
+def generate_css(output_dir: Path | None, style: str) -> None:
+    """Generate Pygments CSS for SQL syntax highlighting."""
+    try:
+        from pygments.formatters import HtmlFormatter
+    except ImportError:
+        console.print(
+            "[red]Error: pygments is not installed. Install it with: pip install pygments[/red]"
+        )
+        sys.exit(1)
+
+    if output_dir is None:
+        # Default to the static directory relative to this file
+        output_dir = Path(__file__).parent / "static"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    css_file = output_dir / "pygments.css"
+
+    console.print(f"Generating Pygments CSS with style '{style}'...")
+
+    # Create HTML formatter with the specified style
+    formatter = HtmlFormatter(  # type: ignore[no-untyped-call]
+        style=style, cssclass="highlight", noclasses=False
+    )
+
+    # Generate CSS
+    css_content = formatter.get_style_defs(".highlight")  # type: ignore[no-untyped-call]
+
+    # Write CSS file
+    with open(css_file, "w", encoding="utf-8") as f:
+        f.write(css_content)
+
+    console.print(f"[green]✓ Generated Pygments CSS: {css_file}[/green]")
+    console.print(f"[blue]Style used: {style}[/blue]")
+    console.print("[yellow]Don't forget to include this CSS file in your HTML![/yellow]")

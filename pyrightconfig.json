@@ -1,0 +1,24 @@
+{
+  "include": ["autopg", "benchmarks/benchmarks"],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    ".venv",
+    "**/.venv",
+    "**/lib",
+    "**/lib64",
+    "autopgpool",
+    "autopgbouncer"
+  ],
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalIterable": false,
+  "reportPrivateUsage": false,
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

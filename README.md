@@ -33,6 +33,7 @@ We use reasonable system defaults when you launch without any env variables. We 
 | `AUTOPG_CPU_COUNT` | `None` | Integer | Number of CPUs on the host |
 | `AUTOPG_NUM_CONNECTIONS` | `100` | Integer | Max number of concurrent connections to the db |
 | `AUTOPG_PRIMARY_DISK_TYPE` | `None` | `SSD`, `HDD`, `SAN` | Type of the primary disk |
+| `AUTOPG_ENABLE_PG_STAT_STATEMENTS` | `true` | `true`, `false` | Enable pg_stat_statements extension for query statistics |
 
 2. Existing `postgresql.conf` file
 
@@ -47,12 +48,36 @@ We build images following {postgres_version}-{autopg_version} tags. Use this tab
 | 15               | latest          | `autopg:15-latest` |
 | 14               | latest          | `autopg:14-latest` |
 
+## Debugging slow queries
+
+![Analysis App](./media/analysis-app.png)
+
+Sequential scans can absolutely kill performance of your webapp, since it requires the database engine to iterate through all your table's data instead of just pulling from a much quicker index cache.
+
+We automatically configure your database with pg_stat, which transparently captures queries that you run against the database. It puts the results in a regular postgres table so you can aggregate the stats like you do with any other Postgres data. While you're free to login as an admin user and query these stats yourself, we bundle a simple webapp to visualize these commands. For security this is disabled by default - if you want to enable it (which you should only be done in firewalled deployments), you can run:
+
+```yml
+autopg:
+  environment:
+    AUTOPG_ENABLE_WEBAPP: true
+    AUTOPG_WEBAPP_HOST: 0.0.0.0
+    AUTOPG_WEBAPP_PORT: 8000
+```
+
+This provides an interface that currently:
+
+- Reports sequential scans and the queries to reproduce
+- Reports on the current size of the indexes
+- Shows the average and aggregate time spent on different queries
+- Shows currently running queries
+
+From there you can create indexes yourself on the most problematic indexes. I suggest running a `EXPLAIN ANALYZE` on an actual query to see how the engine is routing the request, then creating an index to target this slow query, then finally confirming with another analyze.
 
 ## Algorithm
 
 The algorithm is a direct Python conversion from [pgtune](https://pgtune.leopard.in.ua/). If you notice any discrepancies in output from the two tools, please report them to Issues (or better yet - add a test case).
 
-## Getting Started
+## Development
 
 ```bash
 uv sync

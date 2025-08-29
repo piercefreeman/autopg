@@ -21,6 +21,35 @@ from autopg.constants import (
 from autopg.logic import Configuration, PostgresConfig
 
 
+def test_pg_stat_statements_enabled_by_default() -> None:
+    config = PostgresConfig(Configuration())
+    pg_stat_config = config.get_pg_stat_statements_config()
+
+    assert pg_stat_config == {
+        "shared_preload_libraries": "pg_stat_statements",
+        "pg_stat_statements.track": "all",
+        "pg_stat_statements.max": 10000,
+    }
+
+
+def test_pg_stat_statements_disabled() -> None:
+    config = PostgresConfig(Configuration(enable_pg_stat_statements=False))
+    pg_stat_config = config.get_pg_stat_statements_config()
+
+    assert pg_stat_config == {}
+
+
+def test_pg_stat_statements_enabled_explicitly() -> None:
+    config = PostgresConfig(Configuration(enable_pg_stat_statements=True))
+    pg_stat_config = config.get_pg_stat_statements_config()
+
+    assert pg_stat_config == {
+        "shared_preload_libraries": "pg_stat_statements",
+        "pg_stat_statements.track": "all",
+        "pg_stat_statements.max": 10000,
+    }
+
+
 def test_is_configured_nothing_set() -> None:
     config = PostgresConfig(Configuration())
     assert config.state.total_memory is None

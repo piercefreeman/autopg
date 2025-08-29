@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoPG Diagnostics</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/pygments.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AutoPG Performance Analysis</h1>
+            <p>Real-time diagnostics and optimization recommendations</p>
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="total-seq-reads">-</div>
+                <div class="metric-label">Seq Reads</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="total-idx-reads">-</div>
+                <div class="metric-label">Index Reads</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="critical-tables">-</div>
+                <div class="metric-label">Critical Tables</div>
+                    </div>
+            <div class="metric">
+                <div class="metric-value" id="active-queries">-</div>
+                <div class="metric-label">Active Queries</div>
+                    </div>
+                    </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="runFullDiagnostics()">Run Full Diagnostics</button>
+                    </div>
+
+        <div class="section">
+            <h2 class="section-title">Tables with Heavy Sequential Scans</h2>
+            <div id="heavy-scans-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Click "Find Heavy Scans" to begin analysis
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Currently Active Queries</h2>
+            <div id="active-queries-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Click "Show Active Queries" to view running queries
+                </div>
+                    </div>
+                </div>
+
+        <div class="section">
+            <h2 class="section-title">Optimization Recommendations</h2>
+            <div id="recommendations-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Run diagnostics to generate recommendations
+                </div>
+                    </div>
+                </div>
+
+        <div class="section">
+            <h2 class="section-title">Problematic Queries</h2>
+                    <div id="problem-queries-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Analysis pending...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for table analysis -->
+    <div id="tableModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Table Analysis</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modal-body">
+                <div class="loading">
+                    <div class="spinner"></div>
+                Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="heavy-scans-table-template">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Sequential Scans</th>
+                        <th>Seq Rows Read</th>
+                        <th>Index Usage %</th>
+                        <th>Size</th>
+                        <th>Severity</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="heavy-scans-tbody">
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="heavy-scan-row-template">
+        <tr>
+            <td><strong data-field="table-name"></strong></td>
+            <td data-field="seq-scan-count"></td>
+            <td data-field="seq-rows-read"></td>
+            <td data-field="index-usage"></td>
+            <td data-field="table-size"></td>
+            <td data-field="severity"></td>
+            <td>
+                <button class="btn" data-action="analyze-table">
+                    Analyze
+                </button>
+            </td>
+        </tr>
+    </template>
+
+    <template id="active-queries-table-template">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>Duration</th>
+                        <th>State</th>
+                        <th>Query</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="active-queries-tbody">
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="active-query-row-template">
+        <tr>
+            <td data-field="pid"></td>
+            <td data-field="duration"></td>
+            <td data-field="state"></td>
+            <td><code data-field="query"></code></td>
+            <td>
+                <button class="btn btn-primary" data-action="kill-query">
+                    Kill
+                </button>
+            </td>
+        </tr>
+    </template>
+
+    <template id="problem-queries-list-template">
+        <div class="problem-queries-list" id="problem-queries-container">
+        </div>
+    </template>
+
+    <template id="problem-query-item-template">
+        <div class="problem-query-item">
+            <div class="query-stats">
+                <div class="query-stat">
+                    <div class="query-stat-value" data-field="calls"></div>
+                    <div class="query-stat-label">Calls</div>
+                </div>
+                <div class="query-stat">
+                    <div class="query-stat-value" data-field="total-time"></div>
+                    <div class="query-stat-label">Total Time</div>
+                </div>
+                <div class="query-stat">
+                    <div class="query-stat-value" data-field="avg-time"></div>
+                    <div class="query-stat-label">Avg Time</div>
+                </div>
+                <div class="query-stat">
+                    <div class="query-stat-value" data-field="max-time"></div>
+                    <div class="query-stat-label">Max Time</div>
+                </div>
+            </div>
+            <div class="highlight" data-field="query-text">
+            </div>
+        </div>
+    </template>
+
+    <template id="recommendations-list-template">
+        <div id="recommendations-container">
+        </div>
+    </template>
+
+    <template id="recommendation-item-template">
+        <div class="recommendation">
+            <h3 data-field="title"></h3>
+            <p><strong>Reason:</strong> <span data-field="reason"></span></p>
+            <p><strong>Expected Improvement:</strong> <span data-field="improvement"></span></p>
+            <div class="code-block" data-field="create-statement"></div>
+        </div>
+    </template>
+
+    <template id="loading-template">
+        <div class="loading">
+            <div class="spinner"></div>
+            <span data-field="message">Loading...</span>
+        </div>
+    </template>
+
+    <template id="alert-template">
+        <div class="alert" data-field="alert-type">
+            <span data-field="message"></span>
+        </div>
+    </template>
+
+    <!-- Modal Templates -->
+    <template id="modal-scan-stats-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">Scan Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" data-field="seq-scan-count"></div>
+                    <div class="stat-label">Sequential Scans</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" data-field="seq-rows-read"></div>
+                    <div class="stat-label">Rows Read</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" data-field="index-usage"></div>
+                    <div class="stat-label">Index Usage</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" data-field="table-size"></div>
+                    <div class="stat-label">Table Size</div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-indexes-section-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">Existing Indexes</h3>
+            <div class="indexes-list" id="modal-indexes-container">
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-index-item-template">
+        <div class="index-item">
+            <div class="index-header">
+                <span class="index-name" data-field="index-name"></span>
+                <span class="index-size" data-field="index-size"></span>
+            </div>
+            <div class="highlight" data-field="index-def">
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-recommendations-section-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">Recommendations</h3>
+            <div id="modal-recommendations-container">
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-recommendation-item-template">
+        <div class="recommendation" data-field="recommendation-text"></div>
+    </template>
+
+    <template id="modal-problem-queries-section-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">Problem Queries</h3>
+            <div class="problem-queries-list" id="modal-problem-queries-container">
+            </div>
+        </div>
+    </template>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

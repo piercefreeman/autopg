@@ -10,6 +10,10 @@ dependencies = [
     "pydantic>=2.10.6",
     "pydantic-settings>=2.7.1",
     "rich>=13.9.4",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "psycopg>=3.2.5",
+    "pygments>=2.17.0",
 ]
 
 [project.scripts]
@@ -21,6 +25,7 @@ dev = [
     "ruff>=0.3.0",
     "pyright>=1.1.350",
     "psycopg>=3.2.5",
+    "tomli-w>=1.2.0",
 ]
 
 [build-system]

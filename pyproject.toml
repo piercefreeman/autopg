@@ -47,8 +47,3 @@ markers = [
     "integration: marks tests that require external services (deselect with '-m \"not integration\"')",
 ]
 addopts = "-m 'not integration'"
-
-[tool.uv.workspace]
-members = [
-    "benchmarks",
-]

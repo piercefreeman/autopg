@@ -17,24 +17,22 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Create a working directory for the package
 WORKDIR /app
 
-# Install main project dependencies using uv
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --active --no-install-project
+# Copy benchmark project files
+COPY pyproject.toml ./
+COPY uv.lock ./
 
 # Install benchmarking dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=benchmarks/pyproject.toml,target=benchmarks/pyproject.toml \
-    uv pip install -e benchmarks/
+    uv sync --frozen --no-install-project
 
+# Copy the rest of the benchmark code
 COPY . .
 
-# Install the main project
+# Install the benchmark project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --active
+    uv pip install -e .
 
 # Set up the benchmark environment
 ENV PYTHONPATH=/app:$PYTHONPATH
 
-ENTRYPOINT ["autopg-bench"]
+CMD ["uv", "run", "autopg-bench"]

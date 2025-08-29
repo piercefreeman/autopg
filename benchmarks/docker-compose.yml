@@ -32,8 +32,10 @@ services:
       - "5432:5432"  # PostgreSQL port
       - "8000:8000"  # Diagnostics webapp port
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_v3:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -44,8 +46,8 @@ services:
 
   benchmark:
     build:
-      context: ..
-      dockerfile: benchmarks/Dockerfile.benchmark
+      context: .
+      dockerfile: Dockerfile.benchmark
     container_name: autopg-benchmark
     depends_on:
       autopg:
@@ -58,7 +60,7 @@ services:
       POSTGRES_PASSWORD: postgres
       PYTHONUNBUFFERED: 1
     volumes:
-      - ..:/app
+      - .:/app
       - ./results:/results
     working_dir: /app
     command: tail -f /dev/null  # Keep container running for interactive use
@@ -66,7 +68,7 @@ services:
       - autopg-network
 
 volumes:
-  postgres_data:
+  postgres_data_v3:
 
 networks:
   autopg-network:

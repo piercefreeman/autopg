@@ -6,10 +6,8 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS btree_gin;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- Configure pg_stat_statements
-ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
-ALTER SYSTEM SET pg_stat_statements.track = 'all';
-ALTER SYSTEM SET pg_stat_statements.max = 10000;
+-- pg_stat_statements configuration is now in postgresql.conf
+-- This ensures the extension is preloaded before these settings are applied
 
 -- Create benchmark schema
 CREATE SCHEMA IF NOT EXISTS benchmark;

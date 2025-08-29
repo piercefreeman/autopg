@@ -4,427 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AutoPG Diagnostics</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            color: #333;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: 1.1rem;
-        }
-
-        .health-score {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            margin-left: 20px;
-        }
-
-        .health-good { background: #d4edda; color: #155724; }
-        .health-warning { background: #fff3cd; color: #856404; }
-        .health-critical { background: #f8d7da; color: #721c24; }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        .card h2 {
-            color: #333;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 5px;
-        }
-
-        .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-success {
-            background: #28a745;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: #333;
-            font-weight: 600;
-            text-align: left;
-            padding: 12px;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .severity-critical {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
-        .severity-warning {
-            color: #ffc107;
-            font-weight: bold;
-        }
-
-        .severity-ok {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 800px;
-            margin: 50px auto;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .close {
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            color: #999;
-        }
-
-        .close:hover {
-            color: #333;
-        }
-
-        .code-block {
-            background: #f4f4f4;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-            overflow-x: auto;
-        }
-
-        .recommendation {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            margin: 10px 0;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .stat-box {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #667eea;
-            transition: width 0.3s;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .tab-container {
-            margin-top: 30px;
-        }
-
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #dee2e6;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            background: none;
-            border: none;
-            font-size: 1rem;
-            color: #666;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            font-weight: 600;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>
-                AutoPG Diagnostics
-                <span id="health-indicator" class="health-score"></span>
-            </h1>
-            <p class="subtitle">PostgreSQL Performance Analysis & Optimization</p>
+            <h1>AutoPG Performance Analysis</h1>
+            <p>Real-time diagnostics and optimization recommendations</p>
         </div>
 
-        <div class="dashboard">
-            <div class="card">
-                <h2>Quick Actions</h2>
-                <button class="btn" onclick="runFullDiagnostics()">
-                    Run Full Diagnostics
-                </button>
-                <button class="btn btn-success" onclick="getHeavyScans()">
-                    Find Heavy Sequential Scans
-                </button>
-                <button class="btn btn-danger" onclick="getActiveQueries()">
-                    Show Active Queries
-                </button>
-                <button class="btn" onclick="refreshData()">
-                    Refresh All Data
-                </button>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="total-seq-reads">-</div>
+                <div class="metric-label">Seq Reads</div>
             </div>
+            <div class="metric">
+                <div class="metric-value" id="total-idx-reads">-</div>
+                <div class="metric-label">Index Reads</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="critical-tables">-</div>
+                <div class="metric-label">Critical Tables</div>
+                    </div>
+            <div class="metric">
+                <div class="metric-value" id="active-queries">-</div>
+                <div class="metric-label">Active Queries</div>
+                    </div>
+                    </div>
 
-            <div class="card">
-                <h2>System Overview</h2>
-                <div id="system-stats" class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="total-seq-reads">0</div>
-                        <div class="stat-label">Seq Reads</div>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="runFullDiagnostics()">Run Full Diagnostics</button>
+            <button class="btn" onclick="getHeavyScans()">Find Heavy Scans</button>
+            <button class="btn" onclick="getActiveQueries()">Show Active Queries</button>
+            <button class="btn" onclick="refreshData()">Refresh Data</button>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="total-idx-reads">0</div>
-                        <div class="stat-label">Index Reads</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="critical-tables">0</div>
-                        <div class="stat-label">Critical Tables</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="active-queries">0</div>
-                        <div class="stat-label">Active Queries</div>
-                    </div>
+
+        <div class="section">
+            <h2 class="section-title">Tables with Heavy Sequential Scans</h2>
+            <div id="heavy-scans-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Click "Find Heavy Scans" to begin analysis
                 </div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="tab-container">
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('heavy-scans')">Heavy Scans</button>
-                    <button class="tab" onclick="switchTab('active-queries')">Active Queries</button>
-                    <button class="tab" onclick="switchTab('recommendations')">Recommendations</button>
-                    <button class="tab" onclick="switchTab('problem-queries')">Problem Queries</button>
+        <div class="section">
+            <h2 class="section-title">Currently Active Queries</h2>
+            <div id="active-queries-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Click "Show Active Queries" to view running queries
                 </div>
-
-                <div id="heavy-scans" class="tab-content active">
-                    <h2>Tables with Heavy Sequential Scans</h2>
-                    <div id="heavy-scans-content">
-                        <div class="loading">Click "Find Heavy Sequential Scans" to begin analysis</div>
                     </div>
                 </div>
 
-                <div id="active-queries" class="tab-content">
-                    <h2>Currently Active Queries</h2>
-                    <div id="active-queries-content">
-                        <div class="loading">Click "Show Active Queries" to view running queries</div>
+        <div class="section">
+            <h2 class="section-title">Optimization Recommendations</h2>
+            <div id="recommendations-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Run diagnostics to generate recommendations
+                </div>
                     </div>
                 </div>
 
-                <div id="recommendations" class="tab-content">
-                    <h2>Optimization Recommendations</h2>
-                    <div id="recommendations-content">
-                        <div class="loading">Run diagnostics to generate recommendations</div>
-                    </div>
-                </div>
-
-                <div id="problem-queries" class="tab-content">
-                    <h2>Problematic Queries</h2>
+        <div class="section">
+            <h2 class="section-title">Problematic Queries</h2>
                     <div id="problem-queries-content">
-                        <div class="loading">Analysis pending...</div>
-                    </div>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Analysis pending...
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal for table analysis -->
     <div id="tableModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -432,398 +88,14 @@
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             <div id="modal-body">
+                <div class="loading">
+                    <div class="spinner"></div>
                 Loading...
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        let currentData = {
-            heavyScans: [],
-            activeQueries: [],
-            recommendations: [],
-            summary: null
-        };
-
-        async function apiCall(endpoint, options = {}) {
-            try {
-                const response = await fetch(`/api${endpoint}`, options);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('API call failed:', error);
-                alert(`Error: ${error.message}`);
-                return null;
-            }
-        }
-
-        async function runFullDiagnostics() {
-            showLoading('all');
-            
-            const summary = await apiCall('/diagnostics/summary');
-            if (summary) {
-                currentData.summary = summary;
-                updateHealthScore(summary.overall_health_score);
-                updateSystemStats(summary);
-                displayRecommendations(summary.recommendations);
-            }
-
-            await getHeavyScans();
-            await getActiveQueries();
-            await getProblemQueries();
-        }
-
-        async function getHeavyScans() {
-            showLoading('heavy-scans');
-            const data = await apiCall('/diagnostics/heavy-scans?limit=20');
-            if (data) {
-                currentData.heavyScans = data;
-                displayHeavyScans(data);
-            }
-        }
-
-        async function getActiveQueries() {
-            showLoading('active-queries');
-            const data = await apiCall('/diagnostics/active-queries?min_duration=1');
-            if (data) {
-                currentData.activeQueries = data;
-                displayActiveQueries(data);
-            }
-        }
-
-        async function getProblemQueries() {
-            showLoading('problem-queries');
-            const data = await apiCall('/diagnostics/queries?limit=20');
-            if (data) {
-                displayProblemQueries(data);
-            }
-        }
-
-        function displayHeavyScans(tables) {
-            if (!tables || tables.length === 0) {
-                document.getElementById('heavy-scans-content').innerHTML = 
-                    '<div class="alert alert-success">No tables with heavy sequential scans found!</div>';
-                return;
-            }
-
-            let html = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Table</th>
-                                <th>Sequential Scans</th>
-                                <th>Seq Rows Read</th>
-                                <th>Index Usage %</th>
-                                <th>Size</th>
-                                <th>Severity</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            tables.forEach(table => {
-                const severityClass = `severity-${table.severity}`;
-                html += `
-                    <tr>
-                        <td><strong>${table.table_name}</strong></td>
-                        <td>${formatNumber(table.seq_scan_count)}</td>
-                        <td>${formatNumber(table.seq_rows_read)}</td>
-                        <td>${table.index_usage_percentage}%</td>
-                        <td>${table.table_size}</td>
-                        <td class="${severityClass}">${table.severity.toUpperCase()}</td>
-                        <td>
-                            <button class="btn" onclick="analyzeTable('${table.table_name}')">
-                                Analyze
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-            document.getElementById('heavy-scans-content').innerHTML = html;
-        }
-
-        function displayActiveQueries(queries) {
-            if (!queries || queries.length === 0) {
-                document.getElementById('active-queries-content').innerHTML = 
-                    '<div class="alert alert-success">No long-running queries detected!</div>';
-                return;
-            }
-
-            let html = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PID</th>
-                                <th>Duration</th>
-                                <th>State</th>
-                                <th>Query</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            queries.forEach(query => {
-                const duration = formatDuration(query.duration_seconds);
-                const queryText = query.query.substring(0, 100) + (query.query.length > 100 ? '...' : '');
-                html += `
-                    <tr>
-                        <td>${query.pid}</td>
-                        <td>${duration}</td>
-                        <td>${query.state}</td>
-                        <td><code>${escapeHtml(queryText)}</code></td>
-                        <td>
-                            <button class="btn btn-danger" onclick="killQuery(${query.pid})">
-                                Kill
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-            document.getElementById('active-queries-content').innerHTML = html;
-        }
-
-        function displayProblemQueries(queries) {
-            if (!queries || queries.length === 0) {
-                document.getElementById('problem-queries-content').innerHTML = 
-                    '<div class="alert alert-success">No problematic queries found!</div>';
-                return;
-            }
-
-            let html = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Query</th>
-                                <th>Calls</th>
-                                <th>Total Time</th>
-                                <th>Avg Time</th>
-                                <th>Max Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            queries.forEach(query => {
-                const queryText = query.query_text.substring(0, 100) + (query.query_text.length > 100 ? '...' : '');
-                html += `
-                    <tr>
-                        <td><code>${escapeHtml(queryText)}</code></td>
-                        <td>${formatNumber(query.calls)}</td>
-                        <td>${formatDuration(query.total_time_ms / 1000)}</td>
-                        <td>${query.mean_time_ms.toFixed(2)}ms</td>
-                        <td>${query.max_time_ms.toFixed(2)}ms</td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-            document.getElementById('problem-queries-content').innerHTML = html;
-        }
-
-        function displayRecommendations(recommendations) {
-            if (!recommendations || recommendations.length === 0) {
-                document.getElementById('recommendations-content').innerHTML = 
-                    '<div class="alert alert-success">No critical issues found!</div>';
-                return;
-            }
-
-            let html = '<div>';
-            recommendations.forEach((rec, index) => {
-                html += `
-                    <div class="recommendation">
-                        <h3>${index + 1}. ${rec.table_name}</h3>
-                        <p><strong>Reason:</strong> ${rec.reason}</p>
-                        <p><strong>Expected Improvement:</strong> ${rec.estimated_improvement}</p>
-                        <div class="code-block">${escapeHtml(rec.create_statement)}</div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-
-            document.getElementById('recommendations-content').innerHTML = html;
-        }
-
-        async function analyzeTable(tableName) {
-            const modal = document.getElementById('tableModal');
-            modal.style.display = 'block';
-            document.getElementById('modal-title').textContent = `Analysis: ${tableName}`;
-            document.getElementById('modal-body').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
-            const data = await apiCall(`/diagnostics/table/${tableName}`);
-            if (data) {
-                displayTableAnalysis(data);
-            }
-        }
-
-        function displayTableAnalysis(analysis) {
-            let html = `
-                <div>
-                    <h3>Scan Statistics</h3>
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-value">${formatNumber(analysis.scan_stats.seq_scan_count)}</div>
-                            <div class="stat-label">Sequential Scans</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">${formatNumber(analysis.scan_stats.seq_rows_read)}</div>
-                            <div class="stat-label">Rows Read</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">${analysis.scan_stats.index_usage_percentage}%</div>
-                            <div class="stat-label">Index Usage</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">${analysis.scan_stats.table_size}</div>
-                            <div class="stat-label">Table Size</div>
-                        </div>
-                    </div>
-
-                    <h3>Existing Indexes</h3>
-            `;
-
-            if (analysis.indexes && analysis.indexes.length > 0) {
-                html += '<ul>';
-                analysis.indexes.forEach(idx => {
-                    html += `<li><strong>${idx.index_name}</strong> (${idx.index_size}): ${escapeHtml(idx.index_def)}</li>`;
-                });
-                html += '</ul>';
-            } else {
-                html += '<p>No indexes found on this table.</p>';
-            }
-
-            if (analysis.recommendations && analysis.recommendations.length > 0) {
-                html += '<h3>Recommendations</h3>';
-                analysis.recommendations.forEach(rec => {
-                    html += `<div class="recommendation">${rec}</div>`;
-                });
-            }
-
-            if (analysis.problem_queries && analysis.problem_queries.length > 0) {
-                html += '<h3>Problem Queries</h3>';
-                html += '<ul>';
-                analysis.problem_queries.forEach(query => {
-                    html += `<li>${escapeHtml(query.query_text.substring(0, 100))} - ${query.calls} calls, avg ${query.mean_time_ms}ms</li>`;
-                });
-                html += '</ul>';
-            }
-
-            html += '</div>';
-            document.getElementById('modal-body').innerHTML = html;
-        }
-
-        async function killQuery(pid) {
-            if (!confirm(`Are you sure you want to terminate query with PID ${pid}?`)) {
-                return;
-            }
-
-            const result = await apiCall(`/diagnostics/kill-query/${pid}`, { method: 'POST' });
-            if (result && result.success) {
-                alert(result.message);
-                await getActiveQueries();
-            }
-        }
-
-        function updateHealthScore(score) {
-            const indicator = document.getElementById('health-indicator');
-            indicator.textContent = `Health: ${score.toFixed(0)}%`;
-            
-            if (score >= 80) {
-                indicator.className = 'health-score health-good';
-            } else if (score >= 50) {
-                indicator.className = 'health-score health-warning';
-            } else {
-                indicator.className = 'health-score health-critical';
-            }
-        }
-
-        function updateSystemStats(summary) {
-            document.getElementById('total-seq-reads').textContent = formatNumberShort(summary.total_seq_reads);
-            document.getElementById('total-idx-reads').textContent = formatNumberShort(summary.total_idx_reads);
-            document.getElementById('critical-tables').textContent = summary.critical_tables.length;
-            document.getElementById('active-queries').textContent = summary.active_problems.length;
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-        }
-
-        function showLoading(section) {
-            const loadingHtml = '<div class="loading"><div class="spinner"></div> Loading...</div>';
-            
-            if (section === 'all' || section === 'heavy-scans') {
-                document.getElementById('heavy-scans-content').innerHTML = loadingHtml;
-            }
-            if (section === 'all' || section === 'active-queries') {
-                document.getElementById('active-queries-content').innerHTML = loadingHtml;
-            }
-            if (section === 'all' || section === 'problem-queries') {
-                document.getElementById('problem-queries-content').innerHTML = loadingHtml;
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('tableModal').style.display = 'none';
-        }
-
-        function formatNumber(num) {
-            return new Intl.NumberFormat().format(num);
-        }
-
-        function formatNumberShort(num) {
-            if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
-            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-            return num.toString();
-        }
-
-        function formatDuration(seconds) {
-            if (seconds < 60) return `${seconds.toFixed(1)}s`;
-            if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
-            return `${(seconds / 3600).toFixed(1)}h`;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        async function refreshData() {
-            await runFullDiagnostics();
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('tableModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        }
-
-        // Load initial data on page load
-        window.onload = async function() {
-            await runFullDiagnostics();
-        }
-    </script>
+    <script src="/static/script.js"></script>
 </body>
 </html>

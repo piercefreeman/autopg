@@ -11,5 +11,5 @@ Connect to the benchmark container:
 ```bash
 docker compose exec benchmark bash
 
-$ uv run autopg-bench
+$ uv run autopg-bench full --scan-iterations 2000000
 ```

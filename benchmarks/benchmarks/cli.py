@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Benchmarking CLI for AutoPG - Load testing PostgreSQL with unoptimized queries.
+Benchmarking CLI for AutoPG - Load testing PostgreSQL with unoptimized queries using asyncpg.
 """
 
+import asyncio
 import os
 import sys
 from typing import Optional
@@ -12,7 +13,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from .database import DatabaseConnection
+from .database import AsyncDatabaseConnection, DatabaseConnection
 from .insertion import InsertionBenchmark
 from .seqscan import SequentialScanBenchmark
 from .utils import format_duration, format_number
@@ -48,13 +49,19 @@ def cli(ctx: click.Context, host: str, port: int, database: str, user: str,
     ctx.obj['verbose'] = verbose
     
     # Test database connection
-    try:
-        with DatabaseConnection(**ctx.obj['db_config']) as db:
-            db.execute("SELECT 1")
-        if verbose:
-            console.print(f"✅ Connected to PostgreSQL at {host}:{port}/{database}", style="green")
-    except Exception as e:
-        console.print(f"❌ Failed to connect to PostgreSQL: {e}", style="red")
+    async def test_connection():
+        try:
+            async with AsyncDatabaseConnection(**ctx.obj['db_config']) as db:
+                await db.execute("SELECT 1")
+            if verbose:
+                console.print(f"✅ Connected to PostgreSQL at {host}:{port}/{database}", style="green")
+            return True
+        except Exception as e:
+            console.print(f"❌ Failed to connect to PostgreSQL: {e}", style="red")
+            return False
+    
+    # Run the async connection test
+    if not asyncio.run(test_connection()):
         sys.exit(1)
 
 
@@ -172,51 +179,54 @@ def full(ctx: click.Context, insert_records: int, scan_iterations: int, workers:
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show database status and table statistics."""
-    with DatabaseConnection(**ctx.obj['db_config']) as db:
-        # Get table sizes
-        table_stats = db.execute("""
-            SELECT 
-                schemaname,
-                tablename,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-                n_tup_ins as inserts,
-                n_tup_upd as updates,
-                n_tup_del as deletes,
-                seq_scan,
-                seq_tup_read,
-                idx_scan,
-                idx_tup_fetch
-            FROM pg_stat_user_tables 
-            WHERE schemaname = 'benchmark'
-            ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
-        """).fetchall()
-        
-        # Create table
-        table = Table(title="Database Table Statistics")
-        table.add_column("Table", style="cyan")
-        table.add_column("Size", style="magenta")
-        table.add_column("Rows", style="green")
-        table.add_column("Seq Scans", style="yellow")
-        table.add_column("Seq Reads", style="yellow")
-        table.add_column("Index Scans", style="blue")
-        table.add_column("Index Fetches", style="blue")
-        
-        for row in table_stats:
-            # Get row count
-            count_result = db.execute(f"SELECT COUNT(*) FROM benchmark.{row[1]}").fetchone()
-            row_count = format_number(count_result[0]) if count_result else "0"
+    async def get_status():
+        async with AsyncDatabaseConnection(**ctx.obj['db_config']) as db:
+            # Get table sizes
+            table_stats = await db.execute("""
+                SELECT 
+                    schemaname,
+                    tablename,
+                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+                    n_tup_ins as inserts,
+                    n_tup_upd as updates,
+                    n_tup_del as deletes,
+                    seq_scan,
+                    seq_tup_read,
+                    idx_scan,
+                    idx_tup_fetch
+                FROM pg_stat_user_tables 
+                WHERE schemaname = 'benchmark'
+                ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+            """)
             
-            table.add_row(
-                row[1],  # tablename
-                row[2],  # size
-                row_count,
-                format_number(row[6]),  # seq_scan
-                format_number(row[7]),  # seq_tup_read
-                format_number(row[8] or 0),  # idx_scan
-                format_number(row[9] or 0),  # idx_tup_fetch
-            )
-        
-        console.print(table)
+            # Create table
+            table = Table(title="Database Table Statistics")
+            table.add_column("Table", style="cyan")
+            table.add_column("Size", style="magenta")
+            table.add_column("Rows", style="green")
+            table.add_column("Seq Scans", style="yellow")
+            table.add_column("Seq Reads", style="yellow")
+            table.add_column("Index Scans", style="blue")
+            table.add_column("Index Fetches", style="blue")
+            
+            for row in table_stats:
+                # Get row count
+                count_result = await db.execute_one(f"SELECT COUNT(*) FROM benchmark.{row['tablename']}")
+                row_count = format_number(count_result[0]) if count_result else "0"
+                
+                table.add_row(
+                    row['tablename'],
+                    row['size'],
+                    row_count,
+                    format_number(row['seq_scan']),
+                    format_number(row['seq_tup_read']),
+                    format_number(row['idx_scan'] or 0),
+                    format_number(row['idx_tup_fetch'] or 0),
+                )
+            
+            console.print(table)
+    
+    asyncio.run(get_status())
 
 
 def _display_results(title: str, results: dict) -> None:

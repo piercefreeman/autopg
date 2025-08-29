@@ -17,6 +17,8 @@ class IndexUsageLevel(StrEnum):
 
 class TableScanStats(BaseModel):
     """Statistics about sequential and index scans for a table."""
+    model_config = {"populate_by_name": True}
+    
     schema_name: str = Field(alias="schemaname")
     table_name: str = Field(alias="relname")
     seq_scan_count: int = Field(alias="seq_scan", description="Number of sequential scans")
@@ -45,14 +47,14 @@ class TableScanStats(BaseModel):
             severity = IndexUsageLevel.OK
             
         return cls(
-            schema_name=row["schemaname"],
-            table_name=row["relname"],
-            seq_scan_count=row["seq_scan"],
-            seq_rows_read=row["seq_tup_read"],
-            idx_scan_count=row["idx_scan"],
-            idx_rows_fetched=row["idx_tup_fetch"],
+            schema_name=row.get("schemaname", "unknown"),
+            table_name=row.get("relname", "unknown"),
+            seq_scan_count=row.get("seq_scan", 0),
+            seq_rows_read=row.get("seq_tup_read", 0),
+            idx_scan_count=row.get("idx_scan", 0),
+            idx_rows_fetched=row.get("idx_tup_fetch", 0),
             index_usage_percentage=index_usage,
-            table_size=row["table_size"],
+            table_size=row.get("table_size", "unknown"),
             severity=severity
         )
 
@@ -250,20 +252,35 @@ class DiagnosticController:
             
     def get_table_indexes(self, table_name: str) -> List[TableIndexInfo]:
         """Get indexes for a specific table."""
-        query = """
+        # Handle schema-qualified table names
+        if '.' in table_name:
+            schema_name, table_name_only = table_name.split('.', 1)
+            where_clause = "WHERE schemaname = %s AND tablename = %s"
+            params = (schema_name, table_name_only)
+        else:
+            where_clause = "WHERE tablename = %s"
+            params = (table_name,)
+        
+        query = f"""
         SELECT 
             tablename,
             indexname,
             indexdef,
-            pg_size_pretty(pg_relation_size(indexname::regclass)) as index_size
+            COALESCE(
+                (SELECT pg_size_pretty(pg_relation_size(c.oid))
+                 FROM pg_class c 
+                 WHERE c.relname = pg_indexes.indexname 
+                 AND c.relkind = 'i'),
+                'N/A'
+            ) as index_size
         FROM pg_indexes
-        WHERE tablename = %s
+        {where_clause}
         ORDER BY indexname
         """
         
         conn = self._get_connection()
         with conn.cursor() as cur:
-            cur.execute(query, (table_name,))
+            cur.execute(query, params)
             columns = [desc[0] for desc in cur.description]
             results = []
             for row in cur.fetchall():
@@ -275,24 +292,17 @@ class DiagnosticController:
         """Get currently active queries."""
         query = """
         SELECT 
-            pid,
-            EXTRACT(EPOCH FROM (now() - query_start)) as duration_seconds,
-            state,
-            wait_event,
-            query,
-            application_name,
-            blocking_pids IS NOT NULL as is_blocking
-        FROM pg_stat_activity
-        LEFT JOIN LATERAL (
-            SELECT array_agg(blocked.pid) as blocking_pids
-            FROM pg_locks blocked_locks
-            JOIN pg_stat_activity blocked ON blocked.pid = blocked_locks.pid
-            WHERE blocked_locks.granted = false
-              AND blocked_locks.pid != pg_stat_activity.pid
-        ) blocking ON true
-        WHERE state != 'idle'
-          AND query NOT ILIKE '%pg_stat_activity%'
-          AND EXTRACT(EPOCH FROM (now() - query_start)) > %s
+            main.pid,
+            EXTRACT(EPOCH FROM (now() - main.query_start)) as duration_seconds,
+            main.state,
+            main.wait_event,
+            main.query,
+            main.application_name,
+            false as is_blocking
+        FROM pg_stat_activity main
+        WHERE main.state != 'idle'
+          AND main.query NOT ILIKE '%%pg_stat_activity%%'
+          AND EXTRACT(EPOCH FROM (now() - main.query_start)) > %s
         ORDER BY duration_seconds DESC
         """
         
@@ -308,8 +318,17 @@ class DiagnosticController:
         
     def analyze_table(self, table_name: str) -> TableDiagnostics:
         """Complete analysis of a specific table."""
+        # Handle schema-qualified table names
+        if '.' in table_name:
+            schema_name, table_name_only = table_name.split('.', 1)
+            where_clause = "WHERE schemaname = %s AND relname = %s"
+            params = (schema_name, table_name_only)
+        else:
+            where_clause = "WHERE relname = %s"
+            params = (table_name,)
+        
         # Get scan stats for this table
-        query = """
+        query = f"""
         SELECT 
             schemaname,
             relname,
@@ -319,13 +338,13 @@ class DiagnosticController:
             idx_tup_fetch,
             pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) AS table_size
         FROM pg_stat_user_tables
-        WHERE relname = %s
+        {where_clause}
         LIMIT 1
         """
         
         conn = self._get_connection()
         with conn.cursor() as cur:
-            cur.execute(query, (table_name,))
+            cur.execute(query, params)
             columns = [desc[0] for desc in cur.description]
             row = cur.fetchone()
             if not row:

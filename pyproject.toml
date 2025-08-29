@@ -25,6 +25,7 @@ dev = [
     "ruff>=0.3.0",
     "pyright>=1.1.350",
     "psycopg>=3.2.5",
+    "tomli-w>=1.2.0",
 ]
 
 [build-system]

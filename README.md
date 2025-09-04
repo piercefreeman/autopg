@@ -52,9 +52,9 @@ We build images following {postgres_version}-{autopg_version} tags. Use this tab
 
 ![Analysis App](./media/analysis-app.png)
 
-Sequential scans can absolutely kill performance of your webapp, since it requires the database engine to iterate through all your table's data instead of just pulling from a much quicker index cache.
+Sequential scans can absolutely kill the performance of your webapp, since they require the database engine to iterate through all your table's data instead of just pulling from a much quicker index cache.
 
-We automatically configure your database with pg_stat_statements, which transparently captures queries that you run against the database. It puts the results in a regular postgres table so you can aggregate the stats like you do with any other Postgres data. While you're free to login as an admin user and query these stats yourself, we bundle a simple webapp to visualize these commands. For security this is disabled by default - if you want to enable it (which you should only be done in firewalled deployments), you can run:
+We automatically configure your database with `pg_stat_statements`, which transparently captures queries that you run against the database. It puts the results in a regular postgres table so you can aggregate the stats like you do with any other Postgres data. While you're free to login as an admin user and query these stats yourself, we bundle a simple webapp to visualize these logs. For security this is disabled by default - if you want to enable it (which you should only be done in firewalled deployments), you can run:
 
 ```yml
 autopg:
@@ -70,8 +70,9 @@ This provides an interface that currently:
 - Reports on the current size of the indexes
 - Shows the average and aggregate time spent on different queries
 - Shows currently running queries
+- Recommends a `EXPLAIN ANALYZE` command you can run to inspect the query plan
 
-From there you can create indexes yourself on the most problematic indexes. I suggest running a `EXPLAIN ANALYZE` on an actual query to see how the engine is routing the request, then creating an index to target this slow query, then finally confirming with another analyze.
+From there you can create indexes yourself on the most problematic indexes. I suggest running the `EXPLAIN ANALYZE` how the engine is routing the request, then creating an index to target this slow query, then finally confirming with another analyze.
 
 ## Algorithm
 
@@ -95,6 +96,13 @@ docker build --build-arg POSTGRES_VERSION=16 -t autopg .
 
 ```bash
 docker run -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password autopg
+```
+
+If you'd like to test out the our analysis webapp, you can boot up the benchmarks. More info is available in that [README](./benchmarks/README.md).
+
+```bash
+cd benchmarks
+docker compose up
 ```
 
 ## Unit Test

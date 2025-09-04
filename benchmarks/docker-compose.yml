@@ -29,7 +29,7 @@ services:
       AUTOPG_DB_USER: postgres
       AUTOPG_DB_PASSWORD: postgres
     ports:
-      - "5432:5432"  # PostgreSQL port
+      - "5434:5432"  # PostgreSQL port
       - "8000:8000"  # Diagnostics webapp port
     volumes:
       - postgres_data_v6:/var/lib/postgresql/data

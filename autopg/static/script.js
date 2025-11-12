@@ -315,6 +315,40 @@ function displayTableAnalysis(analysis, container) {
     TemplateRenderer.populateFields(scanStatsFragment, scanStatsData);
     container.appendChild(scanStatsFragment);
 
+    // Table Structure
+    if (analysis.columns && analysis.columns.length > 0) {
+        const tableStructureFragment = TemplateRenderer.cloneTemplate('modal-table-structure-section-template');
+        const tbody = tableStructureFragment.getElementById('modal-table-columns-tbody');
+
+        analysis.columns.forEach((column) => {
+            const columnFragment = TemplateRenderer.cloneTemplate('modal-column-row-template');
+            
+            // Format length/precision info
+            let lengthPrecision = '';
+            if (column.character_maximum_length) {
+                lengthPrecision = column.character_maximum_length.toString();
+            } else if (column.numeric_precision) {
+                lengthPrecision = column.numeric_precision.toString();
+                if (column.numeric_scale && column.numeric_scale > 0) {
+                    lengthPrecision += `,${column.numeric_scale}`;
+                }
+            }
+
+            const columnData = {
+                'column-name': column.column_name,
+                'data-type': column.data_type,
+                'nullable': column.is_nullable ? 'YES' : 'NO',
+                'default': column.column_default || '-',
+                'length-precision': lengthPrecision || '-'
+            };
+
+            TemplateRenderer.populateFields(columnFragment, columnData);
+            tbody.appendChild(columnFragment);
+        });
+
+        container.appendChild(tableStructureFragment);
+    }
+
     // Existing Indexes
     const indexesFragment = TemplateRenderer.cloneTemplate('modal-indexes-section-template');
     const indexesContainer = indexesFragment.getElementById('modal-indexes-container');
@@ -344,6 +378,8 @@ function displayTableAnalysis(analysis, container) {
         TemplateRenderer.showAlert(indexesContainer, 'No indexes found on this table.', 'warning');
     }
     container.appendChild(indexesFragment);
+
+    // Note: EXPLAIN ANALYZE results are now shown inline with each problem query above
 
     // Recommendations
     if (analysis.recommendations && analysis.recommendations.length > 0) {
@@ -384,6 +420,46 @@ function displayTableAnalysis(analysis, container) {
                 } else {
                     queryTextElement.innerHTML = `<code>${escapeHtml(query.query_text)}</code>`;
                 }
+            }
+
+            // Find and display matching EXPLAIN ANALYZE results
+            const explainContainer = queryFragment.querySelector('[data-field="explain-container"]');
+            if (explainContainer && analysis.explain_results) {
+                // Find explain results that match this query
+                const matchingExplains = analysis.explain_results.filter(result => 
+                    result.original_query.trim() === query.query_text.trim()
+                );
+
+                matchingExplains.forEach((result) => {
+                    const explainFragment = TemplateRenderer.cloneTemplate('query-explain-result-template');
+                    
+                    const explainData = {
+                        'execution-time': result.execution_time_ms.toFixed(2),
+                        'total-cost': result.total_cost.toFixed(2),
+                        'rows-estimated': formatNumber(result.rows_estimated),
+                        'rows-actual': formatNumber(result.rows_actual)
+                    };
+
+                    TemplateRenderer.populateFields(explainFragment, explainData);
+
+                    // Handle HTML content for parameterized query
+                    const parameterizedQueryElement = explainFragment.querySelector('[data-field="parameterized-query"]');
+                    if (parameterizedQueryElement) {
+                        if (result.parameterized_query_html) {
+                            parameterizedQueryElement.innerHTML = result.parameterized_query_html;
+                        } else {
+                            parameterizedQueryElement.innerHTML = `<code>${escapeHtml(result.parameterized_query)}</code>`;
+                        }
+                    }
+
+                    // Handle execution plan JSON
+                    const planElement = explainFragment.querySelector('[data-field="explain-plan"]');
+                    if (planElement) {
+                        planElement.textContent = JSON.stringify(result.explain_plan, null, 2);
+                    }
+
+                    explainContainer.appendChild(explainFragment);
+                });
             }
 
             problemQueriesContainer.appendChild(queryFragment);

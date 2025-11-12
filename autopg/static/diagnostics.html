@@ -190,6 +190,45 @@
             </div>
             <div class="highlight" data-field="query-text">
             </div>
+            <div class="query-explain-container" data-field="explain-container">
+                <!-- EXPLAIN ANALYZE results will be inserted here -->
+            </div>
+        </div>
+    </template>
+
+    <template id="query-explain-result-template">
+        <div class="query-explain-result">
+            <div class="explain-header">
+                <h5>EXPLAIN ANALYZE Results</h5>
+                <div class="explain-metrics">
+                    <span class="metric-badge">
+                        <strong data-field="execution-time"></strong> ms
+                    </span>
+                    <span class="metric-badge">
+                        Cost: <strong data-field="total-cost"></strong>
+                    </span>
+                    <span class="metric-badge">
+                        Est. Rows: <strong data-field="rows-estimated"></strong>
+                    </span>
+                    <span class="metric-badge">
+                        Actual Rows: <strong data-field="rows-actual"></strong>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="explain-queries">
+                <div class="query-section">
+                    <h6>Parameterized Query</h6>
+                    <div class="highlight" data-field="parameterized-query"></div>
+                </div>
+            </div>
+            
+            <div class="explain-plan">
+                <details class="plan-details">
+                    <summary>Show execution plan details</summary>
+                    <pre class="plan-json" data-field="explain-plan"></pre>
+                </details>
+            </div>
         </div>
     </template>
 
@@ -280,6 +319,89 @@
         <div class="modal-section">
             <h3 class="modal-section-title">Problem Queries</h3>
             <div class="problem-queries-list" id="modal-problem-queries-container">
+            </div>
+        </div>
+    </template>
+
+    <!-- Table Structure Templates -->
+    <template id="modal-table-structure-section-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">Table Structure</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Type</th>
+                            <th>Nullable</th>
+                            <th>Default</th>
+                            <th>Length/Precision</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-table-columns-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-column-row-template">
+        <tr>
+            <td><strong data-field="column-name"></strong></td>
+            <td data-field="data-type"></td>
+            <td data-field="nullable"></td>
+            <td data-field="default"></td>
+            <td data-field="length-precision"></td>
+        </tr>
+    </template>
+
+    <!-- EXPLAIN ANALYZE Results Templates -->
+    <template id="modal-explain-section-template">
+        <div class="modal-section">
+            <h3 class="modal-section-title">EXPLAIN ANALYZE Results</h3>
+            <div id="modal-explain-container">
+            </div>
+        </div>
+    </template>
+
+    <template id="modal-explain-item-template">
+        <div class="explain-result">
+            <div class="explain-header">
+                <h4>Query Analysis</h4>
+                <div class="explain-metrics">
+                    <span class="metric-badge">
+                        <strong data-field="execution-time"></strong> ms
+                    </span>
+                    <span class="metric-badge">
+                        Cost: <strong data-field="total-cost"></strong>
+                    </span>
+                    <span class="metric-badge">
+                        Est. Rows: <strong data-field="rows-estimated"></strong>
+                    </span>
+                    <span class="metric-badge">
+                        Actual Rows: <strong data-field="rows-actual"></strong>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="explain-queries">
+                <div class="query-section">
+                    <h5>Original Query</h5>
+                    <div class="highlight" data-field="original-query"></div>
+                </div>
+                
+                <div class="query-section">
+                    <h5>Parameterized Query</h5>
+                    <div class="highlight" data-field="parameterized-query"></div>
+                </div>
+            </div>
+            
+            <div class="explain-plan">
+                <h5>Execution Plan</h5>
+                <details class="plan-details">
+                    <summary>Show detailed execution plan</summary>
+                    <pre class="plan-json" data-field="explain-plan"></pre>
+                </details>
             </div>
         </div>
     </template>

@@ -24,11 +24,11 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     strategy:
       matrix:
-        postgres-version: ['14', '15', '16', '17']
-        
+        postgres-version: ['14', '15', '16', '17', '18']
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,4 +67,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max 
+          cache-to: type=gha,mode=max

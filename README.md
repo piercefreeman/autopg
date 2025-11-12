@@ -43,6 +43,7 @@ We build images following {postgres_version}-{autopg_version} tags. Use this tab
 
 | Postgres Version | Autopg Version | Tag |
 | ---------------- | -------------- | --- |
+| 18               | latest          | `autopg:18-latest` |
 | 17               | latest          | `autopg:17-latest` |
 | 16               | latest          | `autopg:16-latest` |
 | 15               | latest          | `autopg:15-latest` |
